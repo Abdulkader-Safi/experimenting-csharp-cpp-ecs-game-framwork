@@ -1332,15 +1332,36 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     checkVk(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 }
 
+void VulkanRenderer::setCamera(float eyeX, float eyeY, float eyeZ,
+                               float targetX, float targetY, float targetZ,
+                               float upX, float upY, float upZ, float fovDegrees) {
+    cameraEye_ = glm::vec3(eyeX, eyeY, eyeZ);
+    cameraTarget_ = glm::vec3(targetX, targetY, targetZ);
+    cameraUp_ = glm::vec3(upX, upY, upZ);
+    cameraFov_ = fovDegrees;
+}
+
+void VulkanRenderer::getCursorPos(double& x, double& y) const {
+    glfwGetCursorPos(window_, &x, &y);
+}
+
+void VulkanRenderer::setCursorLocked(bool locked) {
+    cursorLocked_ = locked;
+    glfwSetInputMode(window_, GLFW_CURSOR,
+                     locked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+}
+
+bool VulkanRenderer::isCursorLocked() const {
+    return cursorLocked_;
+}
+
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
     float aspect = static_cast<float>(swapchainExtent_.width) /
                    static_cast<float>(swapchainExtent_.height);
 
     UniformBufferObject ubo{};
-    ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
-                            glm::vec3(0.0f, 0.0f, 0.0f),
-                            glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    ubo.view = glm::lookAt(cameraEye_, cameraTarget_, cameraUp_);
+    ubo.proj = glm::perspective(glm::radians(cameraFov_), aspect, 0.1f, 100.0f);
     ubo.proj[1][1] *= -1; // Vulkan Y-flip
 
     memcpy(uniformBuffersMapped_[currentImage], &ubo, sizeof(ubo));

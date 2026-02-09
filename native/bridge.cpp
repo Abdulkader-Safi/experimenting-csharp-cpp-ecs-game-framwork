@@ -91,4 +91,25 @@ void renderer_remove_entity(int entity_id) {
     }
 }
 
+void renderer_set_camera(float eyeX, float eyeY, float eyeZ,
+                         float targetX, float targetY, float targetZ,
+                         float upX, float upY, float upZ, float fovDegrees) {
+    g_renderer.setCamera(eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
+                         upX, upY, upZ, fovDegrees);
+}
+
+// --- Cursor API ---
+
+void renderer_get_cursor_pos(double* x, double* y) {
+    g_renderer.getCursorPos(*x, *y);
+}
+
+void renderer_set_cursor_locked(int locked) {
+    g_renderer.setCursorLocked(locked != 0);
+}
+
+int renderer_is_cursor_locked() {
+    return g_renderer.isCursorLocked() ? 1 : 0;
+}
+
 } // extern "C"

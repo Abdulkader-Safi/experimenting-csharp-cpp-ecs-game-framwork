@@ -40,6 +40,7 @@ class Viewer
         {
             Speed = 1.5f
         });
+        world.AddComponent(player, new Camera());
 
         // Spawn a second static entity offset to the right
         int prop = world.Spawn();
@@ -56,6 +57,7 @@ class Viewer
 
         // Register systems
         world.AddSystem(Systems.InputMovementSystem);
+        world.AddSystem(Systems.CameraFollowSystem);
         world.AddSystem(Systems.RenderSyncSystem);
 
         // Main loop

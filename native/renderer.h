@@ -95,6 +95,16 @@ public:
     void setEntityTransform(int entityId, const float* mat4x4);
     void removeEntity(int entityId);
 
+    // Camera
+    void setCamera(float eyeX, float eyeY, float eyeZ,
+                   float targetX, float targetY, float targetZ,
+                   float upX, float upY, float upZ, float fovDegrees);
+
+    // Cursor
+    void getCursorPos(double& x, double& y) const;
+    void setCursorLocked(bool locked);
+    bool isCursorLocked() const;
+
 private:
     // Window
     GLFWwindow* window_ = nullptr;
@@ -170,6 +180,13 @@ private:
     float rotX_ = 0.0f, rotY_ = 0.0f, rotZ_ = 0.0f;
     int legacyMeshId_ = -1;
     int legacyEntityId_ = -1;
+
+    // Camera state
+    glm::vec3 cameraEye_ = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraTarget_ = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 cameraUp_ = glm::vec3(0.0f, 1.0f, 0.0f);
+    float cameraFov_ = 45.0f;
+    bool cursorLocked_ = false;
 
     // Init helpers
     void createInstance();
