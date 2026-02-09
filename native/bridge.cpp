@@ -55,4 +55,40 @@ void renderer_render_frame() {
     }
 }
 
+// --- Multi-entity API ---
+
+int renderer_load_mesh(const char* path) {
+    try {
+        return g_renderer.loadMesh(path);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_load_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int renderer_create_entity(int mesh_id) {
+    try {
+        return g_renderer.createEntity(mesh_id);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_entity error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+void renderer_set_entity_transform(int entity_id, const float* mat4x4) {
+    try {
+        g_renderer.setEntityTransform(entity_id, mat4x4);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_set_entity_transform error: " << e.what() << std::endl;
+    }
+}
+
+void renderer_remove_entity(int entity_id) {
+    try {
+        g_renderer.removeEntity(entity_id);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_remove_entity error: " << e.what() << std::endl;
+    }
+}
+
 } // extern "C"

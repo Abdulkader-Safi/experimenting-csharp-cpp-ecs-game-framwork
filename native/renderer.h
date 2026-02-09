@@ -47,9 +47,24 @@ struct Vertex {
 };
 
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
+};
+
+struct PushConstantData {
+    glm::mat4 model;
+};
+
+struct MeshData {
+    int32_t vertexOffset;
+    uint32_t indexOffset;
+    uint32_t indexCount;
+};
+
+struct EntityData {
+    int meshId;
+    glm::mat4 transform;
+    bool active;
 };
 
 struct QueueFamilyIndices {
@@ -65,12 +80,20 @@ class VulkanRenderer {
 public:
     bool init(int width, int height, const char* title);
     void cleanup();
-    bool loadModel(const char* path);
     bool shouldClose() const;
     void pollEvents();
     int isKeyPressed(int glfwKey) const;
-    void setRotation(float rx, float ry, float rz);
     void renderFrame();
+
+    // Legacy API (backward compat)
+    bool loadModel(const char* path);
+    void setRotation(float rx, float ry, float rz);
+
+    // Multi-entity API
+    int loadMesh(const char* path);
+    int createEntity(int meshId);
+    void setEntityTransform(int entityId, const float* mat4x4);
+    void removeEntity(int entityId);
 
 private:
     // Window
@@ -78,9 +101,6 @@ private:
     int width_ = 800;
     int height_ = 600;
     bool framebufferResized_ = false;
-
-    // Rotation
-    float rotX_ = 0.0f, rotY_ = 0.0f, rotZ_ = 0.0f;
 
     // Vulkan core
     VkInstance instance_ = VK_NULL_HANDLE;
@@ -115,7 +135,6 @@ private:
     VkDeviceMemory vertexBufferMemory_ = VK_NULL_HANDLE;
     VkBuffer indexBuffer_ = VK_NULL_HANDLE;
     VkDeviceMemory indexBufferMemory_ = VK_NULL_HANDLE;
-    uint32_t indexCount_ = 0;
 
     // Uniform buffers (per frame in flight)
     static const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -137,9 +156,20 @@ private:
     std::vector<VkFence> inFlightFences_;
     uint32_t currentFrame_ = 0;
 
-    // Model data
-    std::vector<Vertex> vertices_;
-    std::vector<uint32_t> indices_;
+    // Multi-mesh geometry (combined buffer)
+    std::vector<MeshData> meshes_;
+    std::vector<Vertex> allVertices_;
+    std::vector<uint32_t> allIndices_;
+    bool buffersNeedRebuild_ = false;
+
+    // Entities
+    std::vector<EntityData> entities_;
+    std::vector<int> freeEntitySlots_;
+
+    // Legacy compat
+    float rotX_ = 0.0f, rotY_ = 0.0f, rotZ_ = 0.0f;
+    int legacyMeshId_ = -1;
+    int legacyEntityId_ = -1;
 
     // Init helpers
     void createInstance();
@@ -165,6 +195,9 @@ private:
     // Swapchain recreation
     void recreateSwapchain();
     void cleanupSwapchain();
+
+    // Multi-entity
+    void rebuildGeometryBuffers();
 
     // Helpers
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;

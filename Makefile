@@ -12,12 +12,11 @@ EXE = $(BUILD_DIR)/Program.exe
 # Viewer config
 VIEWER_DYLIB = $(BUILD_DIR)/librenderer.dylib
 VIEWER_EXE = $(BUILD_DIR)/Viewer.exe
-VIEWER_CS = managed/Viewer.cs
+VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs managed/ecs/Systems.cs managed/ecs/NativeBridge.cs
 SHADER_DIR = $(BUILD_DIR)/shaders
 VERT_SPV = $(SHADER_DIR)/vert.spv
 FRAG_SPV = $(SHADER_DIR)/frag.spv
 VK_ICD = /opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json
-MODEL = models/Box.glb
 
 # --- Hello demo (existing) ---
 
@@ -51,7 +50,7 @@ $(VIEWER_DYLIB): native/renderer.cpp native/bridge.cpp native/renderer.h native/
 	@ln -sf $(NATIVE_BUILD)/compile_commands.json compile_commands.json
 
 $(VIEWER_EXE): $(VIEWER_CS) | $(BUILD_DIR)
-	$(MCS) -out:$@ $<
+	$(MCS) -out:$@ $(VIEWER_CS)
 
 viewer: shaders $(VIEWER_DYLIB) $(VIEWER_EXE)
 

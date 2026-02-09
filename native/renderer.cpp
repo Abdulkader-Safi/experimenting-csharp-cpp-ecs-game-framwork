@@ -122,24 +122,29 @@ void VulkanRenderer::cleanup() {
     glfwTerminate();
 }
 
-bool VulkanRenderer::loadModel(const char* path) {
+// ---------------------------------------------------------------------------
+// Multi-entity API
+// ---------------------------------------------------------------------------
+
+int VulkanRenderer::loadMesh(const char* path) {
     cgltf_options options = {};
     cgltf_data* data = nullptr;
     cgltf_result result = cgltf_parse_file(&options, path, &data);
     if (result != cgltf_result_success) {
         std::cerr << "Failed to parse glTF: " << path << std::endl;
-        return false;
+        return -1;
     }
 
     result = cgltf_load_buffers(&options, data, path);
     if (result != cgltf_result_success) {
         std::cerr << "Failed to load glTF buffers" << std::endl;
         cgltf_free(data);
-        return false;
+        return -1;
     }
 
-    vertices_.clear();
-    indices_.clear();
+    // Temporary buffers for this mesh (0-based indices)
+    std::vector<Vertex> meshVertices;
+    std::vector<uint32_t> meshIndices;
 
     for (cgltf_size mi = 0; mi < data->meshes_count; mi++) {
         cgltf_mesh& mesh = data->meshes[mi];
@@ -148,9 +153,8 @@ bool VulkanRenderer::loadModel(const char* path) {
             if (prim.type != cgltf_primitive_type_triangles)
                 continue;
 
-            uint32_t vertexOffset = static_cast<uint32_t>(vertices_.size());
+            uint32_t vertexOffset = static_cast<uint32_t>(meshVertices.size());
 
-            // Find accessors
             cgltf_accessor* posAccessor = nullptr;
             cgltf_accessor* normAccessor = nullptr;
             for (cgltf_size ai = 0; ai < prim.attributes_count; ai++) {
@@ -162,14 +166,12 @@ bool VulkanRenderer::loadModel(const char* path) {
 
             if (!posAccessor) continue;
 
-            // Get material base color
-            glm::vec3 baseColor(0.7f, 0.7f, 0.8f); // default gray
+            glm::vec3 baseColor(0.7f, 0.7f, 0.8f);
             if (prim.material && prim.material->has_pbr_metallic_roughness) {
                 float* c = prim.material->pbr_metallic_roughness.base_color_factor;
                 baseColor = glm::vec3(c[0], c[1], c[2]);
             }
 
-            // Read vertices
             for (cgltf_size vi = 0; vi < posAccessor->count; vi++) {
                 Vertex v{};
                 cgltf_accessor_read_float(posAccessor, vi, &v.pos.x, 3);
@@ -178,63 +180,184 @@ bool VulkanRenderer::loadModel(const char* path) {
                 else
                     v.normal = glm::vec3(0.0f, 1.0f, 0.0f);
                 v.color = baseColor;
-                vertices_.push_back(v);
+                meshVertices.push_back(v);
             }
 
-            // Read indices
             if (prim.indices) {
                 for (cgltf_size ii = 0; ii < prim.indices->count; ii++) {
                     uint32_t idx = static_cast<uint32_t>(cgltf_accessor_read_index(prim.indices, ii));
-                    indices_.push_back(vertexOffset + idx);
+                    meshIndices.push_back(vertexOffset + idx);
                 }
             } else {
                 for (uint32_t vi = 0; vi < static_cast<uint32_t>(posAccessor->count); vi++)
-                    indices_.push_back(vertexOffset + vi);
+                    meshIndices.push_back(vertexOffset + vi);
             }
         }
     }
 
     cgltf_free(data);
 
-    if (vertices_.empty()) {
+    if (meshVertices.empty()) {
         std::cerr << "No geometry found in model" << std::endl;
-        return false;
+        return -1;
     }
 
     // Auto-center and scale to fit
     glm::vec3 minB(std::numeric_limits<float>::max());
     glm::vec3 maxB(std::numeric_limits<float>::lowest());
-    for (auto& v : vertices_) {
+    for (auto& v : meshVertices) {
         minB = glm::min(minB, v.pos);
         maxB = glm::max(maxB, v.pos);
     }
     glm::vec3 center = (minB + maxB) * 0.5f;
     float extent = glm::length(maxB - minB);
     float scale = (extent > 0.0f) ? 2.0f / extent : 1.0f;
-    for (auto& v : vertices_) {
+    for (auto& v : meshVertices) {
         v.pos = (v.pos - center) * scale;
     }
 
-    indexCount_ = static_cast<uint32_t>(indices_.size());
+    // Record mesh data: offsets are relative to the combined buffers
+    MeshData md{};
+    md.vertexOffset = static_cast<int32_t>(allVertices_.size());
+    md.indexOffset = static_cast<uint32_t>(allIndices_.size());
+    md.indexCount = static_cast<uint32_t>(meshIndices.size());
 
-    try {
-        // Destroy old geometry buffers if they exist
-        if (device_) vkDeviceWaitIdle(device_);
-        if (vertexBuffer_) { vkDestroyBuffer(device_, vertexBuffer_, nullptr); vertexBuffer_ = VK_NULL_HANDLE; }
-        if (vertexBufferMemory_) { vkFreeMemory(device_, vertexBufferMemory_, nullptr); vertexBufferMemory_ = VK_NULL_HANDLE; }
-        if (indexBuffer_) { vkDestroyBuffer(device_, indexBuffer_, nullptr); indexBuffer_ = VK_NULL_HANDLE; }
-        if (indexBufferMemory_) { vkFreeMemory(device_, indexBufferMemory_, nullptr); indexBufferMemory_ = VK_NULL_HANDLE; }
+    // Append to combined buffers
+    allVertices_.insert(allVertices_.end(), meshVertices.begin(), meshVertices.end());
+    allIndices_.insert(allIndices_.end(), meshIndices.begin(), meshIndices.end());
 
-        createVertexBuffer();
-        createIndexBuffer();
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to create buffers: " << e.what() << std::endl;
-        return false;
+    int meshId = static_cast<int>(meshes_.size());
+    meshes_.push_back(md);
+    buffersNeedRebuild_ = true;
+
+    std::cout << "Loaded mesh " << meshId << ": " << meshVertices.size() << " vertices, "
+              << meshIndices.size() << " indices" << std::endl;
+    return meshId;
+}
+
+int VulkanRenderer::createEntity(int meshId) {
+    if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) {
+        std::cerr << "Invalid mesh ID: " << meshId << std::endl;
+        return -1;
     }
 
-    std::cout << "Loaded model: " << vertices_.size() << " vertices, "
-              << indices_.size() << " indices" << std::endl;
-    return true;
+    EntityData ent{};
+    ent.meshId = meshId;
+    ent.transform = glm::mat4(1.0f);
+    ent.active = true;
+
+    int entityId;
+    if (!freeEntitySlots_.empty()) {
+        entityId = freeEntitySlots_.back();
+        freeEntitySlots_.pop_back();
+        entities_[entityId] = ent;
+    } else {
+        entityId = static_cast<int>(entities_.size());
+        entities_.push_back(ent);
+    }
+
+    return entityId;
+}
+
+void VulkanRenderer::setEntityTransform(int entityId, const float* mat4x4) {
+    if (entityId < 0 || entityId >= static_cast<int>(entities_.size()) || !entities_[entityId].active) {
+        return;
+    }
+    memcpy(&entities_[entityId].transform, mat4x4, sizeof(float) * 16);
+}
+
+void VulkanRenderer::removeEntity(int entityId) {
+    if (entityId < 0 || entityId >= static_cast<int>(entities_.size())) return;
+    entities_[entityId].active = false;
+    freeEntitySlots_.push_back(entityId);
+}
+
+void VulkanRenderer::rebuildGeometryBuffers() {
+    if (allVertices_.empty() || allIndices_.empty()) return;
+
+    vkDeviceWaitIdle(device_);
+
+    if (vertexBuffer_) { vkDestroyBuffer(device_, vertexBuffer_, nullptr); vertexBuffer_ = VK_NULL_HANDLE; }
+    if (vertexBufferMemory_) { vkFreeMemory(device_, vertexBufferMemory_, nullptr); vertexBufferMemory_ = VK_NULL_HANDLE; }
+    if (indexBuffer_) { vkDestroyBuffer(device_, indexBuffer_, nullptr); indexBuffer_ = VK_NULL_HANDLE; }
+    if (indexBufferMemory_) { vkFreeMemory(device_, indexBufferMemory_, nullptr); indexBufferMemory_ = VK_NULL_HANDLE; }
+
+    // Build vertex buffer from allVertices_
+    {
+        VkDeviceSize bufferSize = sizeof(Vertex) * allVertices_.size();
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, allVertices_.data(), static_cast<size_t>(bufferSize));
+        vkUnmapMemory(device_, stagingBufferMemory);
+
+        createBuffer(bufferSize,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     vertexBuffer_, vertexBufferMemory_);
+        copyBuffer(stagingBuffer, vertexBuffer_, bufferSize);
+
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+    }
+
+    // Build index buffer from allIndices_
+    {
+        VkDeviceSize bufferSize = sizeof(uint32_t) * allIndices_.size();
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, allIndices_.data(), static_cast<size_t>(bufferSize));
+        vkUnmapMemory(device_, stagingBufferMemory);
+
+        createBuffer(bufferSize,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     indexBuffer_, indexBufferMemory_);
+        copyBuffer(stagingBuffer, indexBuffer_, bufferSize);
+
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+    }
+
+    buffersNeedRebuild_ = false;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy API (backward compat shims)
+// ---------------------------------------------------------------------------
+
+bool VulkanRenderer::loadModel(const char* path) {
+    int meshId = loadMesh(path);
+    if (meshId < 0) return false;
+
+    legacyMeshId_ = meshId;
+    legacyEntityId_ = createEntity(meshId);
+    return legacyEntityId_ >= 0;
+}
+
+void VulkanRenderer::setRotation(float rx, float ry, float rz) {
+    rotX_ = rx;
+    rotY_ = ry;
+    rotZ_ = rz;
+
+    if (legacyEntityId_ >= 0) {
+        glm::mat4 model(1.0f);
+        model = glm::rotate(model, glm::radians(rotX_), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(rotY_), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(rotZ_), glm::vec3(0.0f, 0.0f, 1.0f));
+        setEntityTransform(legacyEntityId_, &model[0][0]);
+    }
 }
 
 bool VulkanRenderer::shouldClose() const {
@@ -249,14 +372,15 @@ int VulkanRenderer::isKeyPressed(int glfwKey) const {
     return glfwGetKey(window_, glfwKey) == GLFW_PRESS ? 1 : 0;
 }
 
-void VulkanRenderer::setRotation(float rx, float ry, float rz) {
-    rotX_ = rx;
-    rotY_ = ry;
-    rotZ_ = rz;
-}
-
 void VulkanRenderer::renderFrame() {
-    if (indexCount_ == 0) return; // No model loaded
+    if (entities_.empty()) return;
+
+    // Rebuild geometry buffers if meshes were added
+    if (buffersNeedRebuild_) {
+        rebuildGeometryBuffers();
+    }
+
+    if (!vertexBuffer_ || !indexBuffer_) return;
 
     vkWaitForFences(device_, 1, &inFlightFences_[currentFrame_], VK_TRUE, UINT64_MAX);
 
@@ -328,7 +452,6 @@ void VulkanRenderer::createInstance() {
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-    // Get GLFW required extensions
     uint32_t glfwExtCount = 0;
     const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
     if (!glfwExts || glfwExtCount == 0)
@@ -337,7 +460,6 @@ void VulkanRenderer::createInstance() {
             "Ensure DYLD_LIBRARY_PATH includes /opt/homebrew/lib");
     std::vector<const char*> extensions(glfwExts, glfwExts + glfwExtCount);
 
-    // MoltenVK portability
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     extensions.push_back("VK_KHR_get_physical_device_properties2");
 
@@ -381,7 +503,6 @@ bool VulkanRenderer::isDeviceSuitable(VkPhysicalDevice device) const {
     QueueFamilyIndices indices = findQueueFamilies(device);
     if (!indices.isComplete()) return false;
 
-    // Check swapchain support
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> available(extensionCount);
@@ -396,7 +517,6 @@ bool VulkanRenderer::isDeviceSuitable(VkPhysicalDevice device) const {
     }
     if (!swapchainSupported) return false;
 
-    // Check has at least one surface format and present mode
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, nullptr);
     uint32_t presentModeCount;
@@ -473,7 +593,6 @@ void VulkanRenderer::createSwapchain() {
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice_, surface_, &capabilities);
 
-    // Choose surface format
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice_, surface_, &formatCount, nullptr);
     std::vector<VkSurfaceFormatKHR> formats(formatCount);
@@ -487,7 +606,6 @@ void VulkanRenderer::createSwapchain() {
         }
     }
 
-    // Choose present mode (prefer mailbox, fallback to fifo)
     uint32_t presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice_, surface_, &presentModeCount, nullptr);
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
@@ -501,7 +619,6 @@ void VulkanRenderer::createSwapchain() {
         }
     }
 
-    // Choose extent
     VkExtent2D extent;
     if (capabilities.currentExtent.width != UINT32_MAX) {
         extent = capabilities.currentExtent;
@@ -665,7 +782,6 @@ void VulkanRenderer::createGraphicsPipeline() {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertStageInfo, fragStageInfo };
 
-    // Vertex input
     auto bindingDesc = Vertex::getBindingDescription();
     auto attrDescs = Vertex::getAttributeDescriptions();
 
@@ -729,10 +845,18 @@ void VulkanRenderer::createGraphicsPipeline() {
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
+    // Push constant range for per-entity model matrix
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(PushConstantData);
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout_;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     checkVk(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &pipelineLayout_),
             "Failed to create pipeline layout");
@@ -804,7 +928,7 @@ void VulkanRenderer::createDepthResources() {
 }
 
 void VulkanRenderer::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(Vertex) * vertices_.size();
+    VkDeviceSize bufferSize = sizeof(Vertex) * allVertices_.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -814,7 +938,7 @@ void VulkanRenderer::createVertexBuffer() {
 
     void* data;
     vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices_.data(), static_cast<size_t>(bufferSize));
+    memcpy(data, allVertices_.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(device_, stagingBufferMemory);
 
     createBuffer(bufferSize,
@@ -829,7 +953,7 @@ void VulkanRenderer::createVertexBuffer() {
 }
 
 void VulkanRenderer::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(uint32_t) * indices_.size();
+    VkDeviceSize bufferSize = sizeof(uint32_t) * allIndices_.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -839,7 +963,7 @@ void VulkanRenderer::createIndexBuffer() {
 
     void* data;
     vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices_.data(), static_cast<size_t>(bufferSize));
+    memcpy(data, allIndices_.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(device_, stagingBufferMemory);
 
     createBuffer(bufferSize,
@@ -1187,7 +1311,21 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                              pipelineLayout_, 0, 1, &descriptorSets_[currentFrame_], 0, nullptr);
 
-    vkCmdDrawIndexed(commandBuffer, indexCount_, 1, 0, 0, 0);
+    // Draw each active entity with its own push-constant model matrix
+    for (size_t i = 0; i < entities_.size(); i++) {
+        const auto& ent = entities_[i];
+        if (!ent.active) continue;
+
+        const MeshData& mesh = meshes_[ent.meshId];
+
+        PushConstantData pc{};
+        pc.model = ent.transform;
+        vkCmdPushConstants(commandBuffer, pipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT,
+                           0, sizeof(PushConstantData), &pc);
+
+        vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1,
+                         mesh.indexOffset, mesh.vertexOffset, 0);
+    }
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1199,10 +1337,6 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
                    static_cast<float>(swapchainExtent_.height);
 
     UniformBufferObject ubo{};
-    ubo.model = glm::mat4(1.0f);
-    ubo.model = glm::rotate(ubo.model, glm::radians(rotX_), glm::vec3(1.0f, 0.0f, 0.0f));
-    ubo.model = glm::rotate(ubo.model, glm::radians(rotY_), glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.model = glm::rotate(ubo.model, glm::radians(rotZ_), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
                             glm::vec3(0.0f, 0.0f, 0.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
