@@ -65,8 +65,8 @@ namespace ECS
                     {
                         double dx = mx - cam.LastMouseX;
                         double dy = my - cam.LastMouseY;
-                        cam.Yaw += (float)dx * cam.MouseSensitivity;
-                        cam.Pitch -= (float)dy * cam.MouseSensitivity;
+                        cam.Yaw -= (float)dx * cam.MouseSensitivity;
+                        cam.Pitch += (float)dy * cam.MouseSensitivity;
                     }
 
                     cam.LastMouseX = mx;

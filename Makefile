@@ -58,6 +58,11 @@ run: viewer
 	DYLD_LIBRARY_PATH=$(BUILD_DIR):/opt/homebrew/lib VK_ICD_FILENAMES=$(VK_ICD) \
 		mono $(VIEWER_EXE)
 
+# --- App bundle ---
+
+app: viewer
+	@./build-app.sh
+
 # --- Shared ---
 
 clean:
@@ -70,8 +75,9 @@ help:
 	@echo "  all          Build native .dylib and C# .exe (default)"
 	@echo "  run          Build and run the viewer with a sample model"
 	@echo "  viewer       Build Vulkan glTF viewer (shaders + native lib + C# exe)"
+	@echo "  app          Build macOS .app bundle (requires Mono installed)"
 	@echo "  shaders      Compile GLSL shaders to SPIR-V"
 	@echo "  clean        Remove build artifacts"
 	@echo "  help         Show this help message"
 
-.PHONY: all run clean help shaders viewer
+.PHONY: all run clean help shaders viewer app
