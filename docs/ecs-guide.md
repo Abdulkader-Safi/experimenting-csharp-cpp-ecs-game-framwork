@@ -33,6 +33,13 @@ make clean && make run
 
 This compiles shaders, builds the C++ shared library, compiles all C# files, and launches the viewer.
 
+To build a macOS `.app` bundle:
+
+```bash
+make app
+open build/Viewer.app
+```
+
 ## Quick Start
 
 A minimal program that loads a model and renders it with WASD controls:
@@ -162,21 +169,24 @@ world.AddComponent(entity, new Movable { Speed = 2.0f });
 
 #### Camera
 
-Attaches an orbiting camera to an entity. The camera follows the entity's position and can be rotated with Q/E (yaw) and R/F (pitch).
+Attaches an orbiting camera to an entity. The camera follows the entity's position and can be rotated with Q/E (yaw) and R/F (pitch) keyboard input, or with the mouse when the cursor is locked.
 
 ```csharp
 world.AddComponent(entity, new Camera {
     OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f,  // distance from entity
     Yaw = 0f, Pitch = 0f,                       // orbit angles (degrees)
     Fov = 45f,                                   // field of view (degrees)
-    LookSpeed = 1.5f                             // degrees per frame
+    LookSpeed = 1.5f,                            // degrees per frame (keyboard)
+    MouseSensitivity = 0.15f                     // degrees per pixel (mouse)
 });
 ```
 
 - `OffsetX/Y/Z` -- initial offset vector from the entity; its length determines orbit distance (default `0, 0, 3`)
-- `Yaw` / `Pitch` -- orbit angles updated by Q/E and R/F input; pitch clamps to [-89, 89]
+- `Yaw` / `Pitch` -- orbit angles updated by keyboard and mouse input; pitch clamps to [-89, 89]
 - `Fov` -- vertical field of view passed to the perspective projection
 - `LookSpeed` -- how many degrees the camera orbits per frame when a key is held
+- `MouseSensitivity` -- degrees of rotation per pixel of mouse movement (default `0.15`)
+- `LastMouseX/Y`, `MouseInitialized`, `WasEscPressed` -- internal state used by `CameraFollowSystem` for mouse delta tracking and ESC edge-detection
 
 If no `Camera` component is attached, the renderer uses its built-in default (eye at `(0,0,3)`, looking at origin, 45-degree FOV).
 
@@ -225,7 +235,7 @@ A system is a static method with the signature `void SystemName(World world)`. I
 **Built-in systems** (in `managed/ecs/Systems.cs`):
 
 - `InputMovementSystem` -- queries `Movable + Transform`, applies WASD/arrow rotation
-- `CameraFollowSystem` -- queries `Camera + Transform`, orbits the camera around the entity using Q/E/R/F input
+- `CameraFollowSystem` -- queries `Camera + Transform`, orbits the camera around the entity using Q/E/R/F keyboard input and mouse movement when the cursor is locked. ESC toggles cursor lock on/off.
 - `RenderSyncSystem` -- queries `Transform + MeshComponent`, pushes `Transform.ToMatrix()` to the C++ renderer
 
 **Registration order matters.** Systems run in the order they are added.
@@ -330,7 +340,20 @@ Sets the view and projection matrices for rendering. If never called, defaults t
 bool pressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W);
 ```
 
-Available key constants: `GLFW_KEY_W`, `GLFW_KEY_A`, `GLFW_KEY_S`, `GLFW_KEY_D`, `GLFW_KEY_Q`, `GLFW_KEY_E`, `GLFW_KEY_R`, `GLFW_KEY_F`, `GLFW_KEY_UP`, `GLFW_KEY_DOWN`, `GLFW_KEY_LEFT`, `GLFW_KEY_RIGHT`. For other keys, pass the [GLFW key code](https://www.glfw.org/docs/latest/group__keys.html) integer directly.
+Available key constants: `GLFW_KEY_W`, `GLFW_KEY_A`, `GLFW_KEY_S`, `GLFW_KEY_D`, `GLFW_KEY_Q`, `GLFW_KEY_E`, `GLFW_KEY_R`, `GLFW_KEY_F`, `GLFW_KEY_ESCAPE`, `GLFW_KEY_UP`, `GLFW_KEY_DOWN`, `GLFW_KEY_LEFT`, `GLFW_KEY_RIGHT`. For other keys, pass the [GLFW key code](https://www.glfw.org/docs/latest/group__keys.html) integer directly.
+
+### Cursor
+
+```csharp
+NativeBridge.SetCursorLocked(true);   // capture cursor (hides it, enables raw mouse input)
+NativeBridge.SetCursorLocked(false);  // release cursor
+bool locked = NativeBridge.IsCursorLocked();
+
+double mx, my;
+NativeBridge.GetCursorPos(out mx, out my);  // current cursor position in window coordinates
+```
+
+Cursor locking is used by `CameraFollowSystem` for mouse look. Press ESC to toggle.
 
 ## Adding New .cs Files to the Build
 

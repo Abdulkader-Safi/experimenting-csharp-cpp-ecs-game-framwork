@@ -25,7 +25,7 @@ A Vulkan-based glTF model viewer where C# drives the main loop and a C++ shared 
 make run
 ```
 
-Use arrow keys or WASD to rotate the model.
+Use arrow keys or WASD to rotate the model. Press ESC to capture the cursor for mouse look; press ESC again to release.
 
 ## Make Targets
 
@@ -34,6 +34,7 @@ Use arrow keys or WASD to rotate the model.
 | `all`     | Build hello demo `.dylib` and C# `.exe` (default)    |
 | `viewer`  | Build Vulkan glTF viewer (shaders + native lib + C#) |
 | `run`     | Build and run the viewer                             |
+| `app`     | Build macOS `.app` bundle (requires Mono installed)  |
 | `shaders` | Compile GLSL shaders to SPIR-V                       |
 | `clean`   | Remove build artifacts                               |
 | `help`    | Show available targets                               |
@@ -43,6 +44,7 @@ Use arrow keys or WASD to rotate the model.
 ```
 .
 ├── Makefile
+├── build-app.sh             # macOS .app bundle packaging script
 ├── native/
 │   ├── CMakeLists.txt       # CMake build for the shared library
 │   ├── renderer.cpp         # Vulkan renderer implementation
@@ -54,7 +56,12 @@ Use arrow keys or WASD to rotate the model.
 │   └── vendor/
 │       └── cgltf.h          # glTF parsing library
 ├── managed/
-│   └── Viewer.cs            # C# viewer program
+│   ├── Viewer.cs            # C# viewer entry point
+│   └── ecs/
+│       ├── World.cs         # ECS world: entities, components, systems
+│       ├── Components.cs    # Transform, MeshComponent, Movable, Camera
+│       ├── Systems.cs       # Input, camera, and render-sync systems
+│       └── NativeBridge.cs  # P/Invoke bindings to C++ renderer
 ├── models/                  # glTF models (.glb)
 └── build/                   # Generated build artifacts
 ```
