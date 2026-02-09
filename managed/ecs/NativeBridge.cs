@@ -50,6 +50,11 @@ namespace ECS
         [DllImport(LIB)] public static extern void renderer_set_cursor_locked(int locked);
         [DllImport(LIB)] public static extern int renderer_is_cursor_locked();
 
+        // Time API
+        [DllImport(LIB)] public static extern void renderer_update_time();
+        [DllImport(LIB)] public static extern float renderer_get_delta_time();
+        [DllImport(LIB)] public static extern float renderer_get_total_time();
+
         // Convenience wrappers
         public static bool IsKeyPressed(int key)
         {

@@ -10,6 +10,10 @@ namespace ECS
         private readonly Dictionary<string, Dictionary<int, object>> components_ = new Dictionary<string, Dictionary<int, object>>();
         private readonly List<Action<World>> systems_ = new List<Action<World>>();
 
+        // Time tracking (computed on native side via glfwGetTime)
+        public float DeltaTime { get; private set; } = 0.016f;
+        public float TotalTime { get; private set; } = 0f;
+
         public int Spawn()
         {
             int id = nextEntityId_++;
@@ -71,6 +75,13 @@ namespace ECS
         public void AddSystem(Action<World> system)
         {
             systems_.Add(system);
+        }
+
+        public void UpdateTime()
+        {
+            NativeBridge.renderer_update_time();
+            DeltaTime = NativeBridge.renderer_get_delta_time();
+            TotalTime = NativeBridge.renderer_get_total_time();
         }
 
         public void RunSystems()

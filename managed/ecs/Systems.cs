@@ -13,21 +13,23 @@ namespace ECS
                 var mov = world.GetComponent<Movable>(e);
                 var tr = world.GetComponent<Transform>(e);
 
+                float moveStep = mov.Speed * world.DeltaTime;
+
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_LEFT) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_A))
-                    tr.RotY -= mov.Speed;
+                    tr.RotY -= moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_RIGHT) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_D))
-                    tr.RotY += mov.Speed;
+                    tr.RotY += moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_UP) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
-                    tr.RotX -= mov.Speed;
+                    tr.RotX -= moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_DOWN) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_S))
-                    tr.RotX += mov.Speed;
+                    tr.RotX += moveStep;
             }
         }
 
@@ -74,14 +76,15 @@ namespace ECS
                 }
 
                 // Q/E orbit yaw, R/F orbit pitch (always works)
+                float lookStep = cam.LookSpeed * world.DeltaTime;
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_Q))
-                    cam.Yaw -= cam.LookSpeed;
+                    cam.Yaw -= lookStep;
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_E))
-                    cam.Yaw += cam.LookSpeed;
+                    cam.Yaw += lookStep;
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_R))
-                    cam.Pitch += cam.LookSpeed;
+                    cam.Pitch += lookStep;
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_F))
-                    cam.Pitch -= cam.LookSpeed;
+                    cam.Pitch -= lookStep;
 
                 // Clamp pitch
                 if (cam.Pitch > 89f) cam.Pitch = 89f;

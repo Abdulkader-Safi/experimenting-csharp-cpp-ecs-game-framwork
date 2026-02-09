@@ -11,6 +11,7 @@
 | Mouse input (position, cursor lock)                     | Done   |
 | Depth testing / back-face culling                       | Done   |
 | Basic diffuse + ambient lighting (single fixed light)   | Done   |
+| Delta time (native C++ via glfwGetTime)                 | Done   |
 | macOS .app bundle                                       | Done   |
 
 --https://bevy.org/-
@@ -95,7 +96,7 @@
 
 ### 11. Time & Delta Time
 
-- [ ] **Delta time** — Frame-independent movement (currently per-frame, not per-second)
+- [x] **Delta time** — Frame-independent movement via native `glfwGetTime()`, exposed to C# through FFI
 - [ ] **Fixed timestep** — Consistent physics updates regardless of framerate
 - [ ] **Timers** — Countdown/interval timers for cooldowns, spawning, delays
 
@@ -116,7 +117,7 @@
 
 **Phase 1 — Core engine (make things move properly):**
 
-1. Delta time
+1. ~~Delta time~~ ✓
 2. Parent-child entity hierarchy
 3. Mouse buttons + scroll wheel
 4. First-person / third-person camera

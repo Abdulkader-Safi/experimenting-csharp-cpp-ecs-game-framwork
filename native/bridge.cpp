@@ -112,4 +112,18 @@ int renderer_is_cursor_locked() {
     return g_renderer.isCursorLocked() ? 1 : 0;
 }
 
+// --- Time API ---
+
+void renderer_update_time() {
+    g_renderer.updateTime();
+}
+
+float renderer_get_delta_time() {
+    return g_renderer.getDeltaTime();
+}
+
+float renderer_get_total_time() {
+    return g_renderer.getTotalTime();
+}
+
 } // extern "C"

@@ -50,7 +50,7 @@ namespace ECS
 
     public class Movable
     {
-        public float Speed = 1.5f;
+        public float Speed = 90f;
     }
 
     public class Camera
@@ -59,7 +59,7 @@ namespace ECS
         public float Yaw = 0f;
         public float Pitch = 0f;
         public float Fov = 45f;
-        public float LookSpeed = 1.5f;
+        public float LookSpeed = 90f;
         public float MouseSensitivity = 0.15f;
         public double LastMouseX = 0.0, LastMouseY = 0.0;
         public bool MouseInitialized = false;

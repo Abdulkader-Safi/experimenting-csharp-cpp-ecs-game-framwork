@@ -38,7 +38,7 @@ class Viewer
         world.AddComponent(player, playerMesh);
         world.AddComponent(player, new Movable
         {
-            Speed = 1.5f
+            Speed = 90f
         });
         world.AddComponent(player, new Camera());
 
@@ -64,6 +64,7 @@ class Viewer
         while (!NativeBridge.renderer_should_close())
         {
             NativeBridge.renderer_poll_events();
+            world.UpdateTime();
             world.RunSystems();
             NativeBridge.renderer_render_frame();
         }

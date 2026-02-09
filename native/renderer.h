@@ -105,6 +105,11 @@ public:
     void setCursorLocked(bool locked);
     bool isCursorLocked() const;
 
+    // Time
+    void updateTime();
+    float getDeltaTime() const;
+    float getTotalTime() const;
+
 private:
     // Window
     GLFWwindow* window_ = nullptr;
@@ -187,6 +192,11 @@ private:
     glm::vec3 cameraUp_ = glm::vec3(0.0f, 1.0f, 0.0f);
     float cameraFov_ = 45.0f;
     bool cursorLocked_ = false;
+
+    // Time
+    double lastFrameTime_ = 0.0;
+    float deltaTime_ = 0.016f;
+    float totalTime_ = 0.0f;
 
     // Init helpers
     void createInstance();

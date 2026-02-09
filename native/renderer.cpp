@@ -1355,6 +1355,20 @@ bool VulkanRenderer::isCursorLocked() const {
     return cursorLocked_;
 }
 
+void VulkanRenderer::updateTime() {
+    double now = glfwGetTime();
+    if (lastFrameTime_ == 0.0) {
+        lastFrameTime_ = now;
+        return;
+    }
+    deltaTime_ = static_cast<float>(now - lastFrameTime_);
+    lastFrameTime_ = now;
+    totalTime_ += deltaTime_;
+}
+
+float VulkanRenderer::getDeltaTime() const { return deltaTime_; }
+float VulkanRenderer::getTotalTime() const { return totalTime_; }
+
 void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
     float aspect = static_cast<float>(swapchainExtent_.width) /
                    static_cast<float>(swapchainExtent_.height);
