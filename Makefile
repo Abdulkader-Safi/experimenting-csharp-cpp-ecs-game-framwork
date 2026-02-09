@@ -1,17 +1,30 @@
-CXX = g++
 MCS = mcs
 
 BUILD_DIR = build
+NATIVE_BUILD = build/native
+
+# Hello demo
 NATIVE_SRC = native/hello.cpp
 MANAGED_SRC = managed/Program.cs
-
 DYLIB = $(BUILD_DIR)/libhello.dylib
 EXE = $(BUILD_DIR)/Program.exe
+
+# Viewer config
+VIEWER_DYLIB = $(BUILD_DIR)/librenderer.dylib
+VIEWER_EXE = $(BUILD_DIR)/Viewer.exe
+VIEWER_CS = managed/Viewer.cs
+SHADER_DIR = $(BUILD_DIR)/shaders
+VERT_SPV = $(SHADER_DIR)/vert.spv
+FRAG_SPV = $(SHADER_DIR)/frag.spv
+VK_ICD = /opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json
+MODEL = models/Box.glb
+
+# --- Hello demo (existing) ---
 
 all: $(DYLIB) $(EXE)
 
 $(DYLIB): $(NATIVE_SRC) | $(BUILD_DIR)
-	$(CXX) -shared -o $@ $<
+	g++ -shared -o $@ $<
 
 $(EXE): $(MANAGED_SRC) | $(BUILD_DIR)
 	$(MCS) -out:$@ $<
@@ -19,19 +32,47 @@ $(EXE): $(MANAGED_SRC) | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-run: all
-	DYLD_LIBRARY_PATH=$(BUILD_DIR) mono $(EXE)
+# --- Viewer ---
+
+shaders: $(VERT_SPV) $(FRAG_SPV)
+
+$(SHADER_DIR):
+	mkdir -p $(SHADER_DIR)
+
+$(VERT_SPV): native/shaders/shader.vert | $(SHADER_DIR)
+	glslc $< -o $@
+
+$(FRAG_SPV): native/shaders/shader.frag | $(SHADER_DIR)
+	glslc $< -o $@
+
+$(VIEWER_DYLIB): native/renderer.cpp native/bridge.cpp native/renderer.h native/CMakeLists.txt
+	cmake -S native -B $(NATIVE_BUILD) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	cmake --build $(NATIVE_BUILD)
+	@ln -sf $(NATIVE_BUILD)/compile_commands.json compile_commands.json
+
+$(VIEWER_EXE): $(VIEWER_CS) | $(BUILD_DIR)
+	$(MCS) -out:$@ $<
+
+viewer: shaders $(VIEWER_DYLIB) $(VIEWER_EXE)
+
+run: viewer
+	DYLD_LIBRARY_PATH=$(BUILD_DIR):/opt/homebrew/lib VK_ICD_FILENAMES=$(VK_ICD) \
+		mono $(VIEWER_EXE)
+
+# --- Shared ---
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) compile_commands.json
 
 help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all     Build native .dylib and C# .exe (default)"
-	@echo "  run     Build and run the program with Mono"
-	@echo "  clean   Remove build artifacts"
-	@echo "  help    Show this help message"
+	@echo "  all          Build native .dylib and C# .exe (default)"
+	@echo "  run          Build and run the viewer with a sample model"
+	@echo "  viewer       Build Vulkan glTF viewer (shaders + native lib + C# exe)"
+	@echo "  shaders      Compile GLSL shaders to SPIR-V"
+	@echo "  clean        Remove build artifacts"
+	@echo "  help         Show this help message"
 
-.PHONY: all run clean help
+.PHONY: all run clean help shaders viewer

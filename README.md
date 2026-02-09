@@ -1,18 +1,23 @@
-# C++ / C# Bridge with Mono
+# C++ / C# Vulkan glTF Viewer
 
-A minimal example of calling C++ functions from C# using Mono's P/Invoke mechanism.
+A Vulkan-based glTF model viewer where C# drives the main loop and a C++ shared library handles all rendering, connected via Mono P/Invoke.
+
+![Vulkan glTF Viewer](assets/img.png)
 
 ## How It Works
 
-1. **C++ shared library** (`native/hello.cpp`) — Exports C-linkage functions (`add`, `greet`)
-2. **C# program** (`managed/Program.cs`) — Uses `[DllImport("hello")]` to call those functions at runtime
+1. **C++ shared library** (`native/renderer.cpp`, `native/bridge.cpp`) — Vulkan renderer that loads glTF models via cgltf, with C-linkage bridge functions
+2. **C# program** (`managed/Viewer.cs`) — Uses `[DllImport("renderer")]` to drive the render loop and handle keyboard input
 3. **Mono runtime** — Loads the `.dylib` and marshals calls between managed and native code
+4. **CMake** — Builds the native library and generates `compile_commands.json` for IDE support
 
 ## Prerequisites
 
-- **Mono** (provides `mcs` and `mono`)
-- **g++** (C++ compiler)
-- **make**
+- **Mono** (`mcs`, `mono`)
+- **CMake** (>= 3.20)
+- **Vulkan SDK** (MoltenVK on macOS)
+- **GLFW** and **GLM** (e.g. `brew install glfw glm`)
+- **glslc** (SPIR-V shader compiler, included with Vulkan SDK)
 
 ## Quick Start
 
@@ -20,21 +25,18 @@ A minimal example of calling C++ functions from C# using Mono's P/Invoke mechani
 make run
 ```
 
-Expected output:
-
-```
-Hello from C++, Safi!
-3 + 4 = 7
-```
+Use arrow keys or WASD to rotate the model.
 
 ## Make Targets
 
-| Target  | Description                                   |
-| ------- | --------------------------------------------- |
-| `all`   | Build native `.dylib` and C# `.exe` (default) |
-| `run`   | Build and run the program with Mono           |
-| `clean` | Remove build artifacts                        |
-| `help`  | Show available targets                        |
+| Target    | Description                                          |
+| --------- | ---------------------------------------------------- |
+| `all`     | Build hello demo `.dylib` and C# `.exe` (default)    |
+| `viewer`  | Build Vulkan glTF viewer (shaders + native lib + C#) |
+| `run`     | Build and run the viewer                             |
+| `shaders` | Compile GLSL shaders to SPIR-V                       |
+| `clean`   | Remove build artifacts                               |
+| `help`    | Show available targets                               |
 
 ## Project Structure
 
@@ -42,10 +44,17 @@ Hello from C++, Safi!
 .
 ├── Makefile
 ├── native/
-│   └── hello.cpp          # C++ shared library source
+│   ├── CMakeLists.txt       # CMake build for the shared library
+│   ├── renderer.cpp         # Vulkan renderer implementation
+│   ├── renderer.h           # Renderer class declaration
+│   ├── bridge.cpp           # C-linkage bridge for P/Invoke
+│   ├── shaders/
+│   │   ├── shader.vert      # Vertex shader (GLSL)
+│   │   └── shader.frag      # Fragment shader (GLSL)
+│   └── vendor/
+│       └── cgltf.h          # glTF parsing library
 ├── managed/
-│   └── Program.cs         # C# program source
-└── build/                 # Generated build artifacts
-    ├── libhello.dylib
-    └── Program.exe
+│   └── Viewer.cs            # C# viewer program
+├── models/                  # glTF models (.glb)
+└── build/                   # Generated build artifacts
 ```
