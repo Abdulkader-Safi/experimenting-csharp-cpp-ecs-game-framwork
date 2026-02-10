@@ -12,6 +12,30 @@
 #include <optional>
 #include <array>
 
+#define MAX_LIGHTS 8
+
+#define LIGHT_DIRECTIONAL 0
+#define LIGHT_POINT       1
+#define LIGHT_SPOT        2
+
+struct GpuLight {
+    alignas(16) glm::vec4 position;   // xyz = pos, w = unused
+    alignas(16) glm::vec4 direction;  // xyz = dir, w = unused
+    alignas(16) glm::vec4 color;      // xyz = RGB, w = intensity
+    alignas(4)  float innerCone;      // cos(inner angle) for spot
+    alignas(4)  float outerCone;      // cos(outer angle) for spot
+    alignas(4)  float radius;         // attenuation radius (0 = infinite)
+    alignas(4)  int   type;           // 0=directional, 1=point, 2=spot
+};
+
+struct LightUBO {
+    alignas(16) glm::vec4 cameraPos;       // xyz = eye position
+    alignas(4)  int   numLights;
+    alignas(4)  float ambientIntensity;
+    alignas(8)  float _pad[2];             // pad to 16 before array
+    GpuLight    lights[MAX_LIGHTS];        // 8 × 64 = 512
+};
+
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 normal;
@@ -105,6 +129,15 @@ public:
     void setCursorLocked(bool locked);
     bool isCursorLocked() const;
 
+    // Lighting
+    void setLight(int index, int type,
+                  float posX, float posY, float posZ,
+                  float dirX, float dirY, float dirZ,
+                  float r, float g, float b, float intensity,
+                  float radius, float innerCone, float outerCone);
+    void clearLight(int index);
+    void setAmbientIntensity(float intensity);
+
     // Time
     void updateTime();
     float getDeltaTime() const;
@@ -156,6 +189,12 @@ private:
     std::vector<VkBuffer> uniformBuffers_;
     std::vector<VkDeviceMemory> uniformBuffersMemory_;
     std::vector<void*> uniformBuffersMapped_;
+
+    // Light uniform buffers (per frame in flight)
+    std::vector<VkBuffer> lightBuffers_;
+    std::vector<VkDeviceMemory> lightBuffersMemory_;
+    std::vector<void*> lightBuffersMapped_;
+    LightUBO lightData_{};
 
     // Descriptors
     VkDescriptorPool descriptorPool_ = VK_NULL_HANDLE;

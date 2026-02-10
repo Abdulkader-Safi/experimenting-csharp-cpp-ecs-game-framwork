@@ -55,9 +55,24 @@ class Viewer
         };
         world.AddComponent(prop, propMesh);
 
+        // Spawn directional sun light
+        int sun = world.Spawn();
+        world.AddComponent(sun, new Transform());
+        world.AddComponent(sun, new Light
+        {
+            Type = Light.Directional,
+            DirX = 1f,
+            DirY = 1f,
+            DirZ = 1f,
+            Intensity = 1.0f
+        });
+
+        NativeBridge.SetAmbient(0.15f);
+
         // Register systems
         world.AddSystem(Systems.InputMovementSystem);
         world.AddSystem(Systems.CameraFollowSystem);
+        world.AddSystem(Systems.LightSyncSystem);
         world.AddSystem(Systems.RenderSyncSystem);
 
         // Main loop

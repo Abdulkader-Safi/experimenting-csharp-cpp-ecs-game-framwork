@@ -108,6 +108,34 @@ namespace ECS
             }
         }
 
+        public static void LightSyncSystem(World world)
+        {
+            List<int> entities = world.Query(typeof(Light), typeof(Transform));
+            int slot = 0;
+            foreach (int e in entities)
+            {
+                if (slot >= 8) break;
+                var light = world.GetComponent<Light>(e);
+                var tr = world.GetComponent<Transform>(e);
+
+                light.LightIndex = slot;
+
+                float innerCos = (float)Math.Cos(light.InnerConeDeg * Math.PI / 180.0);
+                float outerCos = (float)Math.Cos(light.OuterConeDeg * Math.PI / 180.0);
+
+                NativeBridge.SetLight(slot, light.Type,
+                    tr.X, tr.Y, tr.Z,
+                    light.DirX, light.DirY, light.DirZ,
+                    light.ColorR, light.ColorG, light.ColorB, light.Intensity,
+                    light.Radius, innerCos, outerCos);
+                slot++;
+            }
+
+            // Clear unused slots
+            for (int i = slot; i < 8; i++)
+                NativeBridge.ClearLight(i);
+        }
+
         public static void RenderSyncSystem(World world)
         {
             List<int> entities = world.Query(typeof(Transform), typeof(MeshComponent));

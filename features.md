@@ -10,7 +10,7 @@
 | Keyboard input (polling)                                | Done   |
 | Mouse input (position, cursor lock)                     | Done   |
 | Depth testing / back-face culling                       | Done   |
-| Basic diffuse + ambient lighting (single fixed light)   | Done   |
+| Multiple dynamic lights (directional/point/spot, max 8) | Done   |
 | Delta time (native C++ via glfwGetTime)                 | Done   |
 | macOS .app bundle                                       | Done   |
 
@@ -22,7 +22,7 @@
 
 - [ ] **Textures & UV mapping** — Load textures from glTF, sample in fragment shader, add UV coords to vertex format
 - [ ] **PBR materials** — Metallic/roughness workflow (base color, metallic, roughness, emissive maps)
-- [ ] **Multiple lights** — Point, directional, spot lights as ECS entities with position/color/intensity
+- [x] **Multiple lights** — Point, directional, spot lights as ECS entities with position/color/intensity
 - [ ] **Shadows** — Shadow mapping (at minimum one directional light)
 - [ ] **Transparency / alpha blending** — Separate pass for transparent objects, sorted back-to-front
 - [ ] **Skybox / environment** — Cubemap skybox for background and ambient reflections

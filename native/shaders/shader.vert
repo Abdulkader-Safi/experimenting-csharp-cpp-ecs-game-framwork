@@ -15,9 +15,12 @@ layout(location = 2) in vec3 inColor;
 
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec3 fragColor;
+layout(location = 2) out vec3 fragWorldPos;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * pc.model * vec4(inPosition, 1.0);
+    vec4 worldPos = pc.model * vec4(inPosition, 1.0);
+    gl_Position = ubo.proj * ubo.view * worldPos;
     fragNormal = mat3(transpose(inverse(pc.model))) * inNormal;
     fragColor = inColor;
+    fragWorldPos = worldPos.xyz;
 }

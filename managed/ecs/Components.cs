@@ -53,6 +53,18 @@ namespace ECS
         public float Speed = 90f;
     }
 
+    public class Light
+    {
+        public const int Directional = 0, Point = 1, Spot = 2;
+        public int Type = Directional;
+        public float ColorR = 1f, ColorG = 1f, ColorB = 1f;
+        public float Intensity = 1f;
+        public float DirX = 0f, DirY = -1f, DirZ = 0f;
+        public float Radius = 10f;
+        public float InnerConeDeg = 12.5f, OuterConeDeg = 17.5f;
+        public int LightIndex = -1;
+    }
+
     public class Camera
     {
         public float OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f;

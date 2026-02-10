@@ -126,4 +126,23 @@ float renderer_get_total_time() {
     return g_renderer.getTotalTime();
 }
 
+// --- Lighting API ---
+
+void renderer_set_light(int index, int type,
+                        float posX, float posY, float posZ,
+                        float dirX, float dirY, float dirZ,
+                        float r, float g, float b, float intensity,
+                        float radius, float innerCone, float outerCone) {
+    g_renderer.setLight(index, type, posX, posY, posZ, dirX, dirY, dirZ,
+                        r, g, b, intensity, radius, innerCone, outerCone);
+}
+
+void renderer_clear_light(int index) {
+    g_renderer.clearLight(index);
+}
+
+void renderer_set_ambient(float intensity) {
+    g_renderer.setAmbientIntensity(intensity);
+}
+
 } // extern "C"

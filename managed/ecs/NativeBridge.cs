@@ -55,6 +55,17 @@ namespace ECS
         [DllImport(LIB)] public static extern float renderer_get_delta_time();
         [DllImport(LIB)] public static extern float renderer_get_total_time();
 
+        // Lighting API
+        [DllImport(LIB)]
+        public static extern void renderer_set_light(
+            int index, int type,
+            float posX, float posY, float posZ,
+            float dirX, float dirY, float dirZ,
+            float r, float g, float b, float intensity,
+            float radius, float innerCone, float outerCone);
+        [DllImport(LIB)] public static extern void renderer_clear_light(int index);
+        [DllImport(LIB)] public static extern void renderer_set_ambient(float intensity);
+
         // Convenience wrappers
         public static bool IsKeyPressed(int key)
         {
@@ -102,6 +113,26 @@ namespace ECS
         public static bool IsCursorLocked()
         {
             return renderer_is_cursor_locked() != 0;
+        }
+
+        public static void SetLight(int index, int type,
+                                     float posX, float posY, float posZ,
+                                     float dirX, float dirY, float dirZ,
+                                     float r, float g, float b, float intensity,
+                                     float radius, float innerCone, float outerCone)
+        {
+            renderer_set_light(index, type, posX, posY, posZ, dirX, dirY, dirZ,
+                               r, g, b, intensity, radius, innerCone, outerCone);
+        }
+
+        public static void ClearLight(int index)
+        {
+            renderer_clear_light(index);
+        }
+
+        public static void SetAmbient(float intensity)
+        {
+            renderer_set_ambient(intensity);
         }
     }
 }

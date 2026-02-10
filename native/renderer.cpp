@@ -95,6 +95,10 @@ void VulkanRenderer::cleanup() {
             vkDestroyBuffer(device_, uniformBuffers_[i], nullptr);
             vkFreeMemory(device_, uniformBuffersMemory_[i], nullptr);
         }
+        if (lightBuffers_.size() > i) {
+            vkDestroyBuffer(device_, lightBuffers_[i], nullptr);
+            vkFreeMemory(device_, lightBuffersMemory_[i], nullptr);
+        }
         if (imageAvailableSemaphores_.size() > i)
             vkDestroySemaphore(device_, imageAvailableSemaphores_[i], nullptr);
         if (renderFinishedSemaphores_.size() > i)
@@ -752,10 +756,18 @@ void VulkanRenderer::createDescriptorSetLayout() {
     uboBinding.descriptorCount = 1;
     uboBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+    VkDescriptorSetLayoutBinding lightBinding{};
+    lightBinding.binding = 1;
+    lightBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    lightBinding.descriptorCount = 1;
+    lightBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboBinding, lightBinding };
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboBinding;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
 
     checkVk(vkCreateDescriptorSetLayout(device_, &layoutInfo, nullptr, &descriptorSetLayout_),
             "Failed to create descriptor set layout");
@@ -991,12 +1003,29 @@ void VulkanRenderer::createUniformBuffers() {
         vkMapMemory(device_, uniformBuffersMemory_[i], 0, bufferSize, 0,
                      &uniformBuffersMapped_[i]);
     }
+
+    // Light UBO buffers
+    VkDeviceSize lightSize = sizeof(LightUBO);
+
+    lightBuffers_.resize(MAX_FRAMES_IN_FLIGHT);
+    lightBuffersMemory_.resize(MAX_FRAMES_IN_FLIGHT);
+    lightBuffersMapped_.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(lightSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     lightBuffers_[i], lightBuffersMemory_[i]);
+        vkMapMemory(device_, lightBuffersMemory_[i], 0, lightSize, 0,
+                     &lightBuffersMapped_[i]);
+    }
+
+    lightData_.ambientIntensity = 0.15f;
 }
 
 void VulkanRenderer::createDescriptorPool() {
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * 2);
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1022,21 +1051,36 @@ void VulkanRenderer::createDescriptorSets() {
             "Failed to allocate descriptor sets");
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers_[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        VkDescriptorBufferInfo uboInfo{};
+        uboInfo.buffer = uniformBuffers_[i];
+        uboInfo.offset = 0;
+        uboInfo.range = sizeof(UniformBufferObject);
 
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSets_[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
+        VkDescriptorBufferInfo lightInfo{};
+        lightInfo.buffer = lightBuffers_[i];
+        lightInfo.offset = 0;
+        lightInfo.range = sizeof(LightUBO);
 
-        vkUpdateDescriptorSets(device_, 1, &descriptorWrite, 0, nullptr);
+        std::array<VkWriteDescriptorSet, 2> writes{};
+
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = descriptorSets_[i];
+        writes[0].dstBinding = 0;
+        writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[0].descriptorCount = 1;
+        writes[0].pBufferInfo = &uboInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = descriptorSets_[i];
+        writes[1].dstBinding = 1;
+        writes[1].dstArrayElement = 0;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[1].descriptorCount = 1;
+        writes[1].pBufferInfo = &lightInfo;
+
+        vkUpdateDescriptorSets(device_, static_cast<uint32_t>(writes.size()),
+                               writes.data(), 0, nullptr);
     }
 }
 
@@ -1379,4 +1423,58 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
     ubo.proj[1][1] *= -1; // Vulkan Y-flip
 
     memcpy(uniformBuffersMapped_[currentImage], &ubo, sizeof(ubo));
+
+    // Upload light data
+    lightData_.cameraPos = glm::vec4(cameraEye_, 1.0f);
+    memcpy(lightBuffersMapped_[currentImage], &lightData_, sizeof(lightData_));
+}
+
+// ---------------------------------------------------------------------------
+// Lighting API
+// ---------------------------------------------------------------------------
+
+void VulkanRenderer::setLight(int index, int type,
+                              float posX, float posY, float posZ,
+                              float dirX, float dirY, float dirZ,
+                              float r, float g, float b, float intensity,
+                              float radius, float innerCone, float outerCone) {
+    if (index < 0 || index >= MAX_LIGHTS) return;
+
+    GpuLight& light = lightData_.lights[index];
+    light.position  = glm::vec4(posX, posY, posZ, 0.0f);
+    light.direction = glm::vec4(dirX, dirY, dirZ, 0.0f);
+    light.color     = glm::vec4(r, g, b, intensity);
+    light.innerCone = innerCone;
+    light.outerCone = outerCone;
+    light.radius    = radius;
+    light.type      = type;
+
+    // Recalculate numLights as max active index + 1
+    int maxActive = 0;
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (lightData_.lights[i].color.w > 0.0f || lightData_.lights[i].type >= 0) {
+            // Check if this slot has been explicitly set (intensity > 0)
+            if (lightData_.lights[i].color.w > 0.0f)
+                maxActive = i + 1;
+        }
+    }
+    lightData_.numLights = maxActive;
+}
+
+void VulkanRenderer::clearLight(int index) {
+    if (index < 0 || index >= MAX_LIGHTS) return;
+
+    lightData_.lights[index] = GpuLight{};
+
+    // Recalculate numLights
+    int maxActive = 0;
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (lightData_.lights[i].color.w > 0.0f)
+            maxActive = i + 1;
+    }
+    lightData_.numLights = maxActive;
+}
+
+void VulkanRenderer::setAmbientIntensity(float intensity) {
+    lightData_.ambientIntensity = intensity;
 }
