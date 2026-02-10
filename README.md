@@ -1,67 +1,133 @@
-# C++ / C# Vulkan glTF Viewer
+# Safi ECS Game Engine
 
-A Vulkan-based glTF model viewer where C# drives the main loop and a C++ shared library handles all rendering, connected via Mono P/Invoke.
+A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop and all game logic through an Entity Component System, while a C++ shared library handles Vulkan rendering — connected via Mono P/Invoke.
 
-![Vulkan glTF Viewer](assets/img.png)
+![Safi ECS Game Engine](assets/img2.png)
 
-## How It Works
+## Features
 
-1. **C++ shared library** (`native/renderer.cpp`, `native/bridge.cpp`) — Vulkan renderer that loads glTF models via cgltf, with C-linkage bridge functions
-2. **C# program** (`managed/Viewer.cs`) — Uses `[DllImport("renderer")]` to drive the render loop and handle keyboard input
-3. **Mono runtime** — Loads the `.dylib` and marshals calls between managed and native code
-4. **CMake** — Builds the native library and generates `compile_commands.json` for IDE support
-
-## Prerequisites
-
-- **Mono** (`mcs`, `mono`)
-- **CMake** (>= 3.20)
-- **Vulkan SDK** (MoltenVK on macOS)
-- **GLFW** and **GLM** (e.g. `brew install glfw glm`)
-- **glslc** (SPIR-V shader compiler, included with Vulkan SDK)
+- **Entity Component System** — Bevy-inspired ECS with entity spawning/despawning, component queries, and ordered system execution
+- **Vulkan Renderer** — C++ rendering backend with swapchain management, depth testing, and automatic window resize handling
+- **glTF Model Loading** — Load `.glb`/`.gltf` models via cgltf with vertex positions, normals, and colors
+- **Multi-Entity Rendering** — Spawn multiple entities with independent transforms using per-entity push constants
+- **Dynamic Lighting** — Up to 8 simultaneous lights (directional, point, spot) with Blinn-Phong shading
+- **Orbit Camera** — Spherical orbit camera with mouse look, keyboard controls, and cursor lock toggle
+- **Keyboard & Mouse Input** — WASD/arrow key movement, mouse look with sensitivity, ESC cursor capture
+- **Delta Time** — Frame-independent movement via native-side GLFW timing
+- **macOS App Bundle** — Packageable as a standalone `.app` with embedded runtime and assets
 
 ## Quick Start
+
+### Prerequisites
+
+- [Mono](https://www.mono-project.com/) (`mcs`, `mono`)
+- [CMake](https://cmake.org/) (>= 3.20)
+- [Vulkan SDK](https://vulkan.lunarg.com/) (MoltenVK on macOS)
+- [GLFW](https://www.glfw.org/) and [GLM](https://github.com/g-truc/glm) — `brew install glfw glm`
+- **glslc** (SPIR-V shader compiler, included with Vulkan SDK)
+
+### Build & Run
 
 ```sh
 make run
 ```
 
-Use arrow keys or WASD to rotate the model. Press ESC to capture the cursor for mouse look; press ESC again to release.
+This compiles GLSL shaders to SPIR-V, builds the C++ shared library via CMake, compiles all C# sources with Mono, and launches the viewer with the correct MoltenVK environment.
+
+### Controls
+
+| Input | Action |
+| --- | --- |
+| WASD / Arrow Keys | Rotate player entity |
+| ESC | Toggle cursor lock for mouse look |
+| Mouse (when locked) | Orbit camera yaw/pitch |
+| Q / E | Camera yaw |
+| R / F | Camera pitch |
+
+## Architecture
+
+```
+C# ECS (managed/ecs/)              C++ VulkanRenderer (native/)
+  World — entities, components        Vulkan instance, swapchain, pipeline
+  Systems — per-frame logic           Vertex/index buffers, push constants
+  NativeBridge.cs                     UBOs for view/proj + lighting
+       └──── P/Invoke (DllImport) ────→ bridge.cpp (extern "C")
+```
+
+The C# side owns the game loop and all ECS logic. Each frame it queries entities, runs systems in order, and pushes transforms and light data to the native renderer. The C++ side manages all GPU resources, shader pipelines, and draw calls.
+
+### ECS Pattern
+
+- **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`
+- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `CameraFollowSystem` → `LightSyncSystem` → `RenderSyncSystem`
+- **World** — Manages entity lifecycles, component storage, system registration, and delta time
+
+System execution order matters — `RenderSyncSystem` must always run last.
+
+### Adding a New Native Function
+
+Changes are required in three places:
+
+1. `native/bridge.cpp` — `extern "C"` wrapper
+2. `native/renderer.h` + `renderer.cpp` — Implementation on the `VulkanRenderer` class
+3. `managed/ecs/NativeBridge.cs` — `[DllImport("renderer")]` declaration
+
+Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 
 ## Make Targets
 
-| Target    | Description                                          |
-| --------- | ---------------------------------------------------- |
-| `all`     | Build hello demo `.dylib` and C# `.exe` (default)    |
-| `viewer`  | Build Vulkan glTF viewer (shaders + native lib + C#) |
-| `run`     | Build and run the viewer                             |
-| `app`     | Build macOS `.app` bundle (requires Mono installed)  |
-| `shaders` | Compile GLSL shaders to SPIR-V                       |
-| `clean`   | Remove build artifacts                               |
-| `help`    | Show available targets                               |
+| Target | Description |
+| --- | --- |
+| `make run` | Build everything and run the viewer |
+| `make viewer` | Build shaders + native lib + C# exe |
+| `make app` | Build macOS `.app` bundle |
+| `make shaders` | Compile GLSL → SPIR-V only |
+| `make clean` | Remove all build artifacts |
+| `make all` | Build hello demo (basic P/Invoke test) |
+| `make help` | Show available targets |
 
 ## Project Structure
 
 ```
 .
-├── Makefile
-├── build-app.sh             # macOS .app bundle packaging script
+├── Makefile                          # Build automation
+├── build-app.sh                     # macOS .app packaging script
 ├── native/
-│   ├── CMakeLists.txt       # CMake build for the shared library
-│   ├── renderer.cpp         # Vulkan renderer implementation
-│   ├── renderer.h           # Renderer class declaration
-│   ├── bridge.cpp           # C-linkage bridge for P/Invoke
+│   ├── CMakeLists.txt               # CMake config for shared library
+│   ├── renderer.cpp                 # Vulkan renderer implementation
+│   ├── renderer.h                   # Renderer class declaration
+│   ├── bridge.cpp                   # C-linkage P/Invoke bridge
 │   ├── shaders/
-│   │   ├── shader.vert      # Vertex shader (GLSL)
-│   │   └── shader.frag      # Fragment shader (GLSL)
+│   │   ├── shader.vert              # Vertex shader (GLSL 4.5)
+│   │   └── shader.frag              # Fragment shader (Blinn-Phong lighting)
 │   └── vendor/
-│       └── cgltf.h          # glTF parsing library
+│       └── cgltf.h                  # glTF 2.0 parsing library
 ├── managed/
-│   ├── Viewer.cs            # C# viewer entry point
+│   ├── Viewer.cs                    # Entry point — spawns entities, runs game loop
 │   └── ecs/
-│       ├── World.cs         # ECS world: entities, components, systems
-│       ├── Components.cs    # Transform, MeshComponent, Movable, Camera
-│       ├── Systems.cs       # Input, camera, and render-sync systems
-│       └── NativeBridge.cs  # P/Invoke bindings to C++ renderer
-├── models/                  # glTF models (.glb)
-└── build/                   # Generated build artifacts
+│       ├── World.cs                 # ECS world: entities, components, systems
+│       ├── Components.cs            # Transform, MeshComponent, Movable, Light, Camera
+│       ├── Systems.cs               # Input, camera, lighting, render sync systems
+│       └── NativeBridge.cs          # P/Invoke bindings to C++ renderer
+├── models/                          # glTF models (.glb)
+├── docs/                            # Docusaurus documentation site
+├── plans/                           # Roadmap and planning docs
+└── build/                           # Generated build artifacts
 ```
+
+## Documentation
+
+The project includes a [Docusaurus](https://docusaurus.io/) documentation site covering architecture, ECS usage, API reference, and the feature roadmap.
+
+```sh
+cd docs && bun install && bun run start   # Dev server at localhost:3000
+cd docs && bun run build                  # Production build
+```
+
+## Roadmap
+
+The engine currently implements 16 core features. The [full roadmap](plans/features.md) tracks 100+ planned features across rendering (textures, PBR, shadows), animation (skeletal, blending), physics (collision, rigidbody), scene management, audio, UI, AI, and cross-platform support including web export.
+
+## License
+
+See [LICENSE](LICENSE) for details.
