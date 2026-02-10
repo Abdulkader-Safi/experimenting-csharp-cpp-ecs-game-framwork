@@ -1,0 +1,40 @@
+---
+sidebar_position: 1
+---
+
+# Rendering
+
+The engine uses Vulkan (via MoltenVK on macOS) for 3D rendering with support for glTF mesh loading and multi-entity draw calls.
+
+## Mesh Loading
+
+Load glTF models using `NativeBridge.LoadMesh()`. This parses the `.glb` file with cgltf and uploads vertex/index data to the GPU:
+
+```csharp
+int meshId = NativeBridge.LoadMesh("models/Box.glb");
+```
+
+The returned `meshId` identifies the geometry on the GPU. You can share it across multiple entities.
+
+## Multi-Entity Rendering
+
+Each entity gets its own draw slot in the renderer. The model matrix is passed via Vulkan push constants:
+
+```csharp
+int entity1 = NativeBridge.CreateEntity(meshId);
+int entity2 = NativeBridge.CreateEntity(meshId);  // same mesh, separate transform
+```
+
+The `RenderSyncSystem` automatically pushes each entity's `Transform.ToMatrix()` to its draw slot every frame.
+
+## Render Pipeline
+
+The current pipeline includes:
+- **Vertex shader** — UBO for view/projection matrices, push constant for per-entity model matrix
+- **Fragment shader** — Blinn-Phong shading with support for up to 8 dynamic lights
+- **Depth testing** — enabled, ensures correct draw order
+- **Back-face culling** — enabled, improves performance
+
+## Supported Model Format
+
+- **glTF Binary (.glb)** — positions, normals, and indices are loaded. UV coordinates and textures are not yet supported (see [Roadmap](../roadmap/rendering/textures.md)).
