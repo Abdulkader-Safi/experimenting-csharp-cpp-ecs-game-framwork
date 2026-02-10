@@ -38,4 +38,4 @@ The engine already has a solid foundation:
 
 There's a long [roadmap](/docs/roadmap/rendering/textures) ahead — textures, PBR materials, shadows, skeletal animation, physics, audio, and eventually cross-platform builds. The plan is to keep the engine minimal and educational, adding features one at a time with clear documentation for each.
 
-If you want to try it out, head over to the [Getting Started](/docs/getting-started/prerequisites) guide.
+If you want to try it out, head over to the [Getting Started](https://github.com/Abdulkader-Safi/Safi-ECS-Game-Engine) guide.
