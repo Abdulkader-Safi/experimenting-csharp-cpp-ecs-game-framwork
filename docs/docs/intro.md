@@ -39,6 +39,11 @@ The C# `World` tracks entities and their components. Systems run each frame, que
 | Multiple dynamic lights (directional/point/spot, max 8) | Done   |
 | Delta time (native C++ via glfwGetTime)                 | Done   |
 | macOS .app bundle                                       | Done   |
+| Mouse buttons + scroll wheel                            | Done   |
+| Timers (countdown/interval)                             | Done   |
+| Runtime spawn/despawn with cleanup                      | Done   |
+| Parent-child entity hierarchy                           | Done   |
+| First-person / third-person camera                      | Done   |
 
 ## Next Steps
 

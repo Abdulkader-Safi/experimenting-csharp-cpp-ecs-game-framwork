@@ -21,6 +21,12 @@ namespace ECS
         public const int GLFW_KEY_R = 82;
         public const int GLFW_KEY_F = 70;
         public const int GLFW_KEY_ESCAPE = 256;
+        public const int GLFW_KEY_TAB = 258;
+
+        // GLFW mouse button codes
+        public const int GLFW_MOUSE_BUTTON_LEFT = 0;
+        public const int GLFW_MOUSE_BUTTON_RIGHT = 1;
+        public const int GLFW_MOUSE_BUTTON_MIDDLE = 2;
 
         // Legacy API
         [DllImport(LIB)] public static extern bool renderer_init(int width, int height, string title);
@@ -49,6 +55,11 @@ namespace ECS
         [DllImport(LIB)] public static extern void renderer_get_cursor_pos(out double x, out double y);
         [DllImport(LIB)] public static extern void renderer_set_cursor_locked(int locked);
         [DllImport(LIB)] public static extern int renderer_is_cursor_locked();
+
+        // Mouse API
+        [DllImport(LIB)] public static extern int renderer_is_mouse_button_pressed(int button);
+        [DllImport(LIB)] public static extern void renderer_get_scroll_offset(out float x, out float y);
+        [DllImport(LIB)] public static extern void renderer_reset_scroll_offset();
 
         // Time API
         [DllImport(LIB)] public static extern void renderer_update_time();
@@ -133,6 +144,21 @@ namespace ECS
         public static void SetAmbient(float intensity)
         {
             renderer_set_ambient(intensity);
+        }
+
+        public static bool IsMouseButtonPressed(int button)
+        {
+            return renderer_is_mouse_button_pressed(button) != 0;
+        }
+
+        public static void GetScrollOffset(out float x, out float y)
+        {
+            renderer_get_scroll_offset(out x, out y);
+        }
+
+        public static void ResetScrollOffset()
+        {
+            renderer_reset_scroll_offset();
         }
     }
 }

@@ -15,7 +15,9 @@ var world = new World();
 | Method | Description |
 |---|---|
 | `int Spawn()` | Create a new entity, returns its ID |
-| `void Despawn(int entity)` | Destroy an entity and remove all its components |
+| `void Despawn(int entity)` | Destroy an entity, remove all components, auto-clean native renderer entity, and cascade-delete children |
+| `bool IsAlive(int entity)` | Check if an entity ID is still alive |
+| `int SpawnMeshEntity(int meshId, Transform transform)` | Convenience: spawn entity with `Transform` + `MeshComponent` + native renderer registration in one call |
 | `void AddComponent<T>(int entity, T component)` | Attach a component to an entity |
 | `T GetComponent<T>(int entity)` | Get a component (returns `null` if missing) |
 | `bool HasComponent<T>(int entity)` | Check if an entity has a component |

@@ -13,6 +13,11 @@
 | Multiple dynamic lights (directional/point/spot, max 8) | Done   |
 | Delta time (native C++ via glfwGetTime)                 | Done   |
 | macOS .app bundle                                       | Done   |
+| Mouse buttons + scroll wheel                            | Done   |
+| Timers (countdown/interval)                             | Done   |
+| Spawn/despawn with native cleanup                       | Done   |
+| Parent-child entity hierarchy                           | Done   |
+| First-person / third-person camera                      | Done   |
 
 --https://bevy.org/-
 
@@ -48,7 +53,7 @@
 ### 4. Scene Management
 
 - [ ] **Scene save/load** — Serialize ECS world to file and restore (save games)
-- [ ] **Parent-child hierarchy** — Entity relationships (sword attached to hand, wheel on car)
+- [x] **Parent-child hierarchy** — Entity relationships (sword attached to hand, wheel on car)
 - [ ] **Prefabs / templates** — Reusable entity blueprints (spawn enemy from template)
 - [ ] **Level loading** — Load/switch between different scenes
 
@@ -63,8 +68,8 @@
 
 - [ ] **Gamepad support** — GLFW joystick/gamepad input
 - [ ] **Input action mapping** — Map physical keys to logical actions ("Jump" → Space / A-button)
-- [ ] **Mouse buttons** — Left/right click detection (shoot, interact)
-- [ ] **Scroll wheel** — Camera zoom or weapon swap
+- [x] **Mouse buttons** — Left/right click detection (shoot, interact)
+- [x] **Scroll wheel** — Camera zoom or weapon swap
 
 ### 7. UI / HUD
 
@@ -75,8 +80,8 @@
 
 ### 8. Camera System
 
-- [ ] **First-person camera** — Camera at entity eye position, no orbit
-- [ ] **Third-person camera** — Follow behind entity with wall collision avoidance
+- [x] **First-person camera** — Camera at entity eye position, no orbit
+- [x] **Third-person camera** — Follow behind entity with wall collision avoidance
 - [ ] **Camera shake** — Screen shake on impacts/explosions
 - [ ] **Smooth interpolation** — Lerp position/rotation for smooth transitions
 
@@ -84,7 +89,7 @@
 
 - [ ] **Pathfinding** — A\* or navmesh for NPC navigation
 - [ ] **State machine** — Idle/patrol/chase/attack states for enemies
-- [ ] **Spawn system** — Create entities at runtime (enemies, projectiles, particles)
+- [x] **Spawn system** — Create entities at runtime (enemies, projectiles, particles)
 - [ ] **Health / damage system** — Health component, damage events, death/despawn
 - [ ] **Inventory / pickup** — Collect items, store and manage inventory
 
@@ -98,7 +103,7 @@
 
 - [x] **Delta time** — Frame-independent movement via native `glfwGetTime()`, exposed to C# through FFI
 - [ ] **Fixed timestep** — Consistent physics updates regardless of framerate
-- [ ] **Timers** — Countdown/interval timers for cooldowns, spawning, delays
+- [x] **Timers** — Countdown/interval timers for cooldowns, spawning, delays
 
 ### 12. Entity Lifecycle & Events
 
@@ -118,11 +123,11 @@
 **Phase 1 — Core engine (make things move properly):**
 
 1. ~~Delta time~~ ✓
-2. Parent-child entity hierarchy
-3. Mouse buttons + scroll wheel
-4. First-person / third-person camera
-5. Spawn/despawn at runtime
-6. Timers
+2. ~~Parent-child entity hierarchy~~ ✓
+3. ~~Mouse buttons + scroll wheel~~ ✓
+4. ~~First-person / third-person camera~~ ✓
+5. ~~Spawn/despawn at runtime~~ ✓
+6. ~~Timers~~ ✓
 
 **Phase 2 — Make it look good:** 7. Textures & UV mapping 8. PBR materials 9. Multiple lights 10. Shadows 11. Skybox 12. MSAA
 

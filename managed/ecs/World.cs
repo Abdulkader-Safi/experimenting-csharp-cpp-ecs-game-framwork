@@ -21,13 +21,60 @@ namespace ECS
             return id;
         }
 
+        public bool IsAlive(int entity)
+        {
+            return aliveEntities_.Contains(entity);
+        }
+
         public void Despawn(int entity)
         {
+            if (!aliveEntities_.Contains(entity)) return;
+
+            // Clean up native renderer entity if this entity has a mesh
+            var mc = GetComponent<MeshComponent>(entity);
+            if (mc != null && mc.RendererEntityId >= 0)
+            {
+                NativeBridge.RemoveEntity(mc.RendererEntityId);
+                mc.RendererEntityId = -1;
+            }
+
+            // Cascade-delete children
+            var children = new List<int>();
+            string hierarchyKey = typeof(Hierarchy).FullName;
+            if (components_.ContainsKey(hierarchyKey))
+            {
+                foreach (var kvp in components_[hierarchyKey])
+                {
+                    var h = (Hierarchy)kvp.Value;
+                    if (h.Parent == entity)
+                        children.Add(kvp.Key);
+                }
+            }
+
             aliveEntities_.Remove(entity);
             foreach (var store in components_.Values)
             {
                 store.Remove(entity);
             }
+
+            // Recursively despawn children
+            foreach (int child in children)
+            {
+                Despawn(child);
+            }
+        }
+
+        public int SpawnMeshEntity(int meshId, Transform transform)
+        {
+            int entity = Spawn();
+            AddComponent(entity, transform);
+            var mc = new MeshComponent
+            {
+                MeshId = meshId,
+                RendererEntityId = NativeBridge.CreateEntity(meshId)
+            };
+            AddComponent(entity, mc);
+            return entity;
         }
 
         public void AddComponent<T>(int entity, T component) where T : class

@@ -27,6 +27,12 @@ void VulkanRenderer::framebufferResizeCallback(GLFWwindow* window, int /*w*/, in
     app->framebufferResized_ = true;
 }
 
+void VulkanRenderer::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    auto* app = reinterpret_cast<VulkanRenderer*>(glfwGetWindowUserPointer(window));
+    app->scrollOffsetX_ += static_cast<float>(xoffset);
+    app->scrollOffsetY_ += static_cast<float>(yoffset);
+}
+
 std::vector<char> VulkanRenderer::readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
     if (!file.is_open())
@@ -59,6 +65,7 @@ bool VulkanRenderer::init(int width, int height, const char* title) {
     }
     glfwSetWindowUserPointer(window_, this);
     glfwSetFramebufferSizeCallback(window_, framebufferResizeCallback);
+    glfwSetScrollCallback(window_, scrollCallback);
 
     try {
         createInstance();
@@ -1397,6 +1404,20 @@ void VulkanRenderer::setCursorLocked(bool locked) {
 
 bool VulkanRenderer::isCursorLocked() const {
     return cursorLocked_;
+}
+
+int VulkanRenderer::isMouseButtonPressed(int button) const {
+    return glfwGetMouseButton(window_, button) == GLFW_PRESS ? 1 : 0;
+}
+
+void VulkanRenderer::getScrollOffset(float& x, float& y) const {
+    x = scrollOffsetX_;
+    y = scrollOffsetY_;
+}
+
+void VulkanRenderer::resetScrollOffset() {
+    scrollOffsetX_ = 0.0f;
+    scrollOffsetY_ = 0.0f;
 }
 
 void VulkanRenderer::updateTime() {

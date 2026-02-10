@@ -33,6 +33,24 @@ namespace ECS
             }
         }
 
+        public static void TimerSystem(World world)
+        {
+            List<int> entities = world.Query(typeof(Timer));
+            foreach (int e in entities)
+            {
+                var timer = world.GetComponent<Timer>(e);
+                if (timer.Finished && !timer.Repeat) continue;
+
+                timer.Elapsed += world.DeltaTime;
+                if (timer.Elapsed >= timer.Duration)
+                {
+                    timer.Finished = true;
+                    if (timer.Repeat)
+                        timer.Elapsed -= timer.Duration;
+                }
+            }
+        }
+
         public static void CameraFollowSystem(World world)
         {
             List<int> entities = world.Query(typeof(Camera), typeof(Transform));
@@ -50,6 +68,14 @@ namespace ECS
                     cam.MouseInitialized = false;
                 }
                 cam.WasEscPressed = escPressed;
+
+                // TAB toggle camera mode (edge-detected)
+                bool tabPressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_TAB);
+                if (tabPressed && !cam.WasModeTogglePressed)
+                {
+                    cam.Mode = (cam.Mode == 0) ? 1 : 0;
+                }
+                cam.WasModeTogglePressed = tabPressed;
 
                 // Mouse look when cursor is locked
                 if (NativeBridge.IsCursorLocked())
@@ -90,21 +116,51 @@ namespace ECS
                 if (cam.Pitch > 89f) cam.Pitch = 89f;
                 if (cam.Pitch < -89f) cam.Pitch = -89f;
 
-                // Orbit distance from offset vector length
-                float dist = (float)Math.Sqrt(cam.OffsetX * cam.OffsetX +
-                                               cam.OffsetY * cam.OffsetY +
-                                               cam.OffsetZ * cam.OffsetZ);
-
-                // Spherical offset from yaw/pitch
                 double yawRad = cam.Yaw * Math.PI / 180.0;
                 double pitchRad = cam.Pitch * Math.PI / 180.0;
-                float eyeX = tr.X + dist * (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
-                float eyeY = tr.Y + dist * (float)Math.Sin(pitchRad);
-                float eyeZ = tr.Z + dist * (float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
 
-                NativeBridge.SetCamera(eyeX, eyeY, eyeZ,
-                                       tr.X, tr.Y, tr.Z,
-                                       0f, 1f, 0f, cam.Fov);
+                if (cam.Mode == 1)
+                {
+                    // First-person: eye at entity position + eye height, look in yaw/pitch direction
+                    float eyeX = tr.X;
+                    float eyeY = tr.Y + cam.EyeHeight;
+                    float eyeZ = tr.Z;
+
+                    float dirX = (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
+                    float dirY = (float)Math.Sin(pitchRad);
+                    float dirZ = (float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
+
+                    NativeBridge.SetCamera(eyeX, eyeY, eyeZ,
+                                           eyeX + dirX, eyeY + dirY, eyeZ + dirZ,
+                                           0f, 1f, 0f, cam.Fov);
+                }
+                else
+                {
+                    // Third-person orbit: scroll wheel zooms
+                    float scrollX, scrollY;
+                    NativeBridge.GetScrollOffset(out scrollX, out scrollY);
+                    NativeBridge.ResetScrollOffset();
+
+                    float dist = (float)Math.Sqrt(cam.OffsetX * cam.OffsetX +
+                                                   cam.OffsetY * cam.OffsetY +
+                                                   cam.OffsetZ * cam.OffsetZ);
+                    dist -= scrollY * cam.ZoomSpeed;
+                    if (dist < cam.MinDistance) dist = cam.MinDistance;
+                    if (dist > cam.MaxDistance) dist = cam.MaxDistance;
+
+                    // Store back into offset (along Z for simplicity)
+                    cam.OffsetX = 0f;
+                    cam.OffsetY = 0f;
+                    cam.OffsetZ = dist;
+
+                    float eyeX = tr.X + dist * (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
+                    float eyeY = tr.Y + dist * (float)Math.Sin(pitchRad);
+                    float eyeZ = tr.Z + dist * (float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
+
+                    NativeBridge.SetCamera(eyeX, eyeY, eyeZ,
+                                           tr.X, tr.Y, tr.Z,
+                                           0f, 1f, 0f, cam.Fov);
+                }
             }
         }
 
@@ -136,6 +192,60 @@ namespace ECS
                 NativeBridge.ClearLight(i);
         }
 
+        public static void HierarchyTransformSystem(World world)
+        {
+            List<int> entities = world.Query(typeof(Transform));
+            foreach (int e in entities)
+            {
+                var tr = world.GetComponent<Transform>(e);
+                var hier = world.GetComponent<Hierarchy>(e);
+
+                float[] localMatrix = tr.ToMatrix();
+
+                if (hier != null && hier.Parent >= 0 && world.IsAlive(hier.Parent))
+                {
+                    // Walk parent chain to get parent's world transform
+                    float[] parentWorld = GetWorldMatrix(world, hier.Parent);
+                    float[] worldMatrix = Transform.MultiplyMatrices(parentWorld, localMatrix);
+
+                    var wt = world.GetComponent<WorldTransform>(e);
+                    if (wt == null)
+                    {
+                        wt = new WorldTransform();
+                        world.AddComponent(e, wt);
+                    }
+                    wt.Matrix = worldMatrix;
+                }
+                else
+                {
+                    // Root entity — world transform is local transform
+                    var wt = world.GetComponent<WorldTransform>(e);
+                    if (wt != null)
+                    {
+                        wt.Matrix = localMatrix;
+                    }
+                }
+            }
+        }
+
+        private static float[] GetWorldMatrix(World world, int entity)
+        {
+            var tr = world.GetComponent<Transform>(entity);
+            if (tr == null)
+                return new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+
+            float[] localMatrix = tr.ToMatrix();
+            var hier = world.GetComponent<Hierarchy>(entity);
+
+            if (hier != null && hier.Parent >= 0 && world.IsAlive(hier.Parent))
+            {
+                float[] parentWorld = GetWorldMatrix(world, hier.Parent);
+                return Transform.MultiplyMatrices(parentWorld, localMatrix);
+            }
+
+            return localMatrix;
+        }
+
         public static void RenderSyncSystem(World world)
         {
             List<int> entities = world.Query(typeof(Transform), typeof(MeshComponent));
@@ -146,7 +256,9 @@ namespace ECS
 
                 if (mc.RendererEntityId >= 0)
                 {
-                    NativeBridge.SetEntityTransform(mc.RendererEntityId, tr.ToMatrix());
+                    var wt = world.GetComponent<WorldTransform>(e);
+                    float[] matrix = (wt != null) ? wt.Matrix : tr.ToMatrix();
+                    NativeBridge.SetEntityTransform(mc.RendererEntityId, matrix);
                 }
             }
         }

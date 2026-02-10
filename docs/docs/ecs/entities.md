@@ -15,20 +15,30 @@ int enemy = world.Spawn();
 
 Each call to `Spawn()` returns a unique integer ID.
 
+### SpawnMeshEntity
+
+For entities that need a mesh, `SpawnMeshEntity` creates the entity, attaches a `Transform` and `MeshComponent`, and registers it with the native renderer in one call:
+
+```csharp
+int meshId = NativeBridge.LoadMesh("models/Box.glb");
+int box = world.SpawnMeshEntity(meshId, new Transform { X = 2f });
+```
+
 ## Destroying Entities
 
 ```csharp
 world.Despawn(enemy);
 ```
 
-`Despawn` removes the entity and all its attached components. If the entity has a `MeshComponent`, you should clean up the renderer entity first:
+`Despawn` removes the entity and all its attached components. It automatically handles cleanup:
+
+- If the entity has a `MeshComponent`, the native renderer entity is removed via `NativeBridge.RemoveEntity()` — no manual cleanup needed
+- If the entity has children (via `Hierarchy`), they are recursively despawned as well
+
+## Checking Alive Status
 
 ```csharp
-var mc = world.GetComponent<MeshComponent>(entity);
-if (mc != null && mc.RendererEntityId >= 0)
-    NativeBridge.RemoveEntity(mc.RendererEntityId);
-
-world.Despawn(entity);
+bool alive = world.IsAlive(entity);
 ```
 
 ## Multi-Entity Example
@@ -40,12 +50,7 @@ int meshId = NativeBridge.LoadMesh("models/Box.glb");
 
 for (int i = 0; i < 10; i++)
 {
-    int e = world.Spawn();
-    world.AddComponent(e, new Transform { X = i * 2f });
-    world.AddComponent(e, new MeshComponent {
-        MeshId = meshId,
-        RendererEntityId = NativeBridge.CreateEntity(meshId)
-    });
+    int e = world.SpawnMeshEntity(meshId, new Transform { X = i * 2f });
 }
 ```
 

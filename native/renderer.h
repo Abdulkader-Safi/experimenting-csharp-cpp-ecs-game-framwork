@@ -129,6 +129,11 @@ public:
     void setCursorLocked(bool locked);
     bool isCursorLocked() const;
 
+    // Mouse buttons & scroll
+    int isMouseButtonPressed(int button) const;
+    void getScrollOffset(float& x, float& y) const;
+    void resetScrollOffset();
+
     // Lighting
     void setLight(int index, int type,
                   float posX, float posY, float posZ,
@@ -232,6 +237,10 @@ private:
     float cameraFov_ = 45.0f;
     bool cursorLocked_ = false;
 
+    // Scroll accumulator
+    float scrollOffsetX_ = 0.0f;
+    float scrollOffsetY_ = 0.0f;
+
     // Time
     double lastFrameTime_ = 0.0;
     float deltaTime_ = 0.016f;
@@ -284,5 +293,6 @@ private:
     void updateUniformBuffer(uint32_t currentImage);
 
     static void framebufferResizeCallback(GLFWwindow* window, int w, int h);
+    static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
     static std::vector<char> readFile(const std::string& filename);
 };

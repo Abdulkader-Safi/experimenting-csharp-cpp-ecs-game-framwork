@@ -16,15 +16,41 @@ Queries: `Movable` + `Transform`
 
 Applies WASD/arrow key rotation to movable entities. Movement speed is multiplied by `world.DeltaTime` for frame-independent rotation.
 
+### TimerSystem
+
+Queries: `Timer`
+
+Ticks all `Timer` components each frame using `world.DeltaTime`:
+
+- **One-shot timers** (`Repeat = false`): `Finished` is set to `true` once and the timer stops advancing
+- **Interval timers** (`Repeat = true`): `Finished` is set to `true` each cycle, and `Elapsed` wraps by subtracting `Duration`
+
 ### CameraFollowSystem
 
 Queries: `Camera` + `Transform`
 
-Orbits the camera around the entity using:
+Handles both camera modes:
+
+- **Third-person** (Mode 0): Orbits the camera around the entity. Scroll wheel zooms in/out, clamped between `MinDistance` and `MaxDistance`.
+- **First-person** (Mode 1): Places the camera at entity position + `EyeHeight`, looking along yaw/pitch direction.
+
+Controls:
 - **Q/E** — yaw (horizontal orbit)
 - **R/F** — pitch (vertical orbit)
 - **Mouse** — free-look when cursor is locked
+- **Scroll wheel** — zoom (third-person only)
+- **TAB** — toggle first-person / third-person (edge-detected)
 - **ESC** — toggle cursor lock on/off
+
+### HierarchyTransformSystem
+
+Queries: `Transform`
+
+Computes world-space transforms for entities in a parent-child hierarchy:
+
+1. For child entities (with `Hierarchy` component pointing to a valid parent), walks the parent chain and multiplies `parent.WorldTransform * child.LocalTransform`
+2. Automatically adds a `WorldTransform` component to child entities if not present
+3. Root entities keep their local transform as-is
 
 ### LightSyncSystem
 
@@ -36,17 +62,19 @@ Pushes light data to the C++ renderer each frame. Supports up to 8 active lights
 
 Queries: `Transform` + `MeshComponent`
 
-Pushes `Transform.ToMatrix()` to the C++ renderer for each entity with a mesh. **This should always be the last system** so it sees the final state of all transforms.
+Pushes transform matrices to the C++ renderer for each entity with a mesh. Uses `WorldTransform.Matrix` if available (for entities in a hierarchy), falling back to `Transform.ToMatrix()` for root entities. **This should always be the last system** so it sees the final state of all transforms.
 
 ## Registration Order
 
 Systems run in the order they are added. **Order matters.**
 
 ```csharp
-world.AddSystem(Systems.InputMovementSystem);   // runs first
-world.AddSystem(Systems.CameraFollowSystem);    // updates camera from input
-world.AddSystem(Systems.LightSyncSystem);       // syncs lights to GPU
-world.AddSystem(Systems.RenderSyncSystem);      // runs last — syncs transforms
+world.AddSystem(Systems.InputMovementSystem);        // runs first
+world.AddSystem(Systems.TimerSystem);                 // tick timers
+world.AddSystem(Systems.CameraFollowSystem);          // updates camera from input
+world.AddSystem(Systems.HierarchyTransformSystem);    // compute world transforms
+world.AddSystem(Systems.LightSyncSystem);             // syncs lights to GPU
+world.AddSystem(Systems.RenderSyncSystem);            // runs last — syncs transforms
 ```
 
 ## Writing Custom Systems
@@ -74,13 +102,7 @@ public static void DespawnDeadSystem(World world)
     {
         var hp = world.GetComponent<Health>(e);
         if (hp.Current <= 0f)
-        {
-            var mc = world.GetComponent<MeshComponent>(e);
-            if (mc != null && mc.RendererEntityId >= 0)
-                NativeBridge.RemoveEntity(mc.RendererEntityId);
-
-            world.Despawn(e);
-        }
+            world.Despawn(e);  // auto-cleans native renderer entity
     }
 }
 ```
@@ -91,7 +113,9 @@ Register them before `RenderSyncSystem`:
 world.AddSystem(GravitySystem);
 world.AddSystem(DespawnDeadSystem);
 world.AddSystem(Systems.InputMovementSystem);
+world.AddSystem(Systems.TimerSystem);
 world.AddSystem(Systems.CameraFollowSystem);
+world.AddSystem(Systems.HierarchyTransformSystem);
 world.AddSystem(Systems.LightSyncSystem);
 world.AddSystem(Systems.RenderSyncSystem);  // always last
 ```

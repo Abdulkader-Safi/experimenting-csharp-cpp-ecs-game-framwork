@@ -25,6 +25,7 @@ if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
 | `GLFW_KEY_Q/E` | Camera yaw |
 | `GLFW_KEY_R/F` | Camera pitch |
 | `GLFW_KEY_ESCAPE` | Toggle cursor lock |
+| `GLFW_KEY_TAB` | Toggle camera mode (FP/TP) |
 | `GLFW_KEY_UP/DOWN/LEFT/RIGHT` | Arrow keys |
 
 For other keys, pass the [GLFW key code](https://www.glfw.org/docs/latest/group__keys.html) integer directly.
@@ -50,6 +51,42 @@ bool locked = NativeBridge.IsCursorLocked();
 ```
 
 When locked, the cursor is hidden and raw mouse input is enabled for camera look. The `CameraFollowSystem` uses ESC to toggle this automatically.
+
+## Mouse Buttons
+
+Poll individual mouse buttons each frame:
+
+```csharp
+if (NativeBridge.IsMouseButtonPressed(NativeBridge.GLFW_MOUSE_BUTTON_LEFT))
+{
+    // Left mouse button is held down
+}
+```
+
+### Button Constants
+
+| Constant | Value | Button |
+|---|---|---|
+| `GLFW_MOUSE_BUTTON_LEFT` | `0` | Left click |
+| `GLFW_MOUSE_BUTTON_RIGHT` | `1` | Right click |
+| `GLFW_MOUSE_BUTTON_MIDDLE` | `2` | Middle click (scroll wheel press) |
+
+## Scroll Wheel
+
+Read accumulated scroll delta and reset each frame:
+
+```csharp
+float scrollX, scrollY;
+NativeBridge.GetScrollOffset(out scrollX, out scrollY);
+NativeBridge.ResetScrollOffset();
+```
+
+| Method | Description |
+|---|---|
+| `GetScrollOffset(out float x, out float y)` | Read accumulated scroll delta since last reset |
+| `ResetScrollOffset()` | Reset the scroll accumulator to zero |
+
+The `CameraFollowSystem` uses scroll wheel for third-person camera zoom automatically.
 
 ## Input in Systems
 

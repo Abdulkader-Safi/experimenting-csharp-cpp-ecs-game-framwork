@@ -112,6 +112,20 @@ int renderer_is_cursor_locked() {
     return g_renderer.isCursorLocked() ? 1 : 0;
 }
 
+// --- Mouse API ---
+
+int renderer_is_mouse_button_pressed(int button) {
+    return g_renderer.isMouseButtonPressed(button);
+}
+
+void renderer_get_scroll_offset(float* x, float* y) {
+    g_renderer.getScrollOffset(*x, *y);
+}
+
+void renderer_reset_scroll_offset() {
+    g_renderer.resetScrollOffset();
+}
+
 // --- Time API ---
 
 void renderer_update_time() {

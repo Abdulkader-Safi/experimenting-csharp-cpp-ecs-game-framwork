@@ -40,6 +40,37 @@ namespace ECS
                 X,            Y,            Z,            1f   // column 3
             };
         }
+
+        // Column-major 4x4 matrix multiply: result = a * b
+        public static float[] MultiplyMatrices(float[] a, float[] b)
+        {
+            float[] r = new float[16];
+            for (int col = 0; col < 4; col++)
+            {
+                for (int row = 0; row < 4; row++)
+                {
+                    float sum = 0f;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        sum += a[k * 4 + row] * b[col * 4 + k];
+                    }
+                    r[col * 4 + row] = sum;
+                }
+            }
+            return r;
+        }
+    }
+
+    public class Hierarchy
+    {
+        public int Parent = -1;  // -1 = root (no parent)
+    }
+
+    public class WorldTransform
+    {
+        public float[] Matrix = new float[] {
+            1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1
+        };
     }
 
     public class MeshComponent
@@ -65,6 +96,15 @@ namespace ECS
         public int LightIndex = -1;
     }
 
+    public class Timer
+    {
+        public float Duration = 1f;
+        public float Elapsed = 0f;
+        public bool Repeat = false;
+        public bool Finished = false;
+        public string Tag = "";
+    }
+
     public class Camera
     {
         public float OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f;
@@ -76,5 +116,13 @@ namespace ECS
         public double LastMouseX = 0.0, LastMouseY = 0.0;
         public bool MouseInitialized = false;
         public bool WasEscPressed = false;
+
+        // Camera mode: 0 = third-person orbit, 1 = first-person
+        public int Mode = 0;
+        public float EyeHeight = 0.8f;
+        public bool WasModeTogglePressed = false;
+        public float MinDistance = 1f;
+        public float MaxDistance = 20f;
+        public float ZoomSpeed = 2f;
     }
 }

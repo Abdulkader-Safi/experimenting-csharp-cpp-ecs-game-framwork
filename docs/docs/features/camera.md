@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Camera
 
-The engine provides an orbit camera that follows an entity. It supports both keyboard and mouse controls.
+The engine provides a camera system with two modes: **third-person orbit** (default) and **first-person**. Toggle between them with TAB.
 
 ## Setup
 
@@ -22,6 +22,20 @@ world.AddComponent(player, new Camera {
 
 The `CameraFollowSystem` handles all camera logic automatically.
 
+## Camera Modes
+
+### Third-Person (Mode 0, default)
+
+The camera orbits around the entity at a configurable distance. Scroll wheel zooms in and out, clamped between `MinDistance` and `MaxDistance`.
+
+### First-Person (Mode 1)
+
+The camera is placed at the entity's position plus `EyeHeight` on the Y axis. It looks in the direction defined by `Yaw` and `Pitch`. Scroll wheel zoom is not used in this mode.
+
+### Switching Modes
+
+Press **TAB** to toggle between modes. The toggle is edge-detected (fires once per press).
+
 ## Controls
 
 | Input | Action |
@@ -29,15 +43,18 @@ The `CameraFollowSystem` handles all camera logic automatically.
 | Q / E | Orbit camera left / right (yaw) |
 | R / F | Orbit camera up / down (pitch) |
 | Mouse movement (when locked) | Free-look orbit |
+| Scroll wheel | Zoom in / out (third-person only) |
+| TAB | Toggle first-person / third-person |
 | ESC | Toggle cursor lock on/off |
 
 ## How It Works
 
 1. **Orbit distance** is calculated from the length of the offset vector (`OffsetX/Y/Z`)
 2. **Yaw and Pitch** define the spherical coordinates around the entity
-3. The camera position is computed as: entity position + spherical offset
-4. Pitch is clamped to [-89, 89] degrees to prevent gimbal lock
-5. The view matrix is set via `NativeBridge.SetCamera()`
+3. In third-person mode, the camera position is computed as: entity position + spherical offset
+4. In first-person mode, the camera is at entity position + `EyeHeight`, looking along the yaw/pitch direction
+5. Pitch is clamped to [-89, 89] degrees to prevent gimbal lock
+6. The view matrix is set via `NativeBridge.SetCamera()`
 
 ## Mouse Look
 
@@ -66,3 +83,9 @@ If no `Camera` component is attached to any entity, the renderer uses its built-
 | `Fov` | `float` | `45` | Vertical field of view (degrees) |
 | `LookSpeed` | `float` | `90` | Degrees/second for keyboard orbit |
 | `MouseSensitivity` | `float` | `0.15` | Degrees/pixel for mouse look |
+| `Mode` | `int` | `0` | `0` = third-person orbit, `1` = first-person |
+| `EyeHeight` | `float` | `0.8` | Eye height offset for first-person mode |
+| `WasModeTogglePressed` | `bool` | `false` | Internal state for edge-detecting TAB |
+| `MinDistance` | `float` | `1` | Minimum zoom distance (third-person) |
+| `MaxDistance` | `float` | `20` | Maximum zoom distance (third-person) |
+| `ZoomSpeed` | `float` | `2` | Scroll wheel zoom sensitivity |
