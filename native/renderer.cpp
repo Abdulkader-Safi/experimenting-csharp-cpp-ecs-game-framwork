@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -227,23 +228,262 @@ int VulkanRenderer::loadMesh(const char* path) {
         v.pos = (v.pos - center) * scale;
     }
 
-    // Record mesh data: offsets are relative to the combined buffers
+    return addMesh(meshVertices, meshIndices);
+}
+
+int VulkanRenderer::addMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+    if (vertices.empty() || indices.empty()) {
+        std::cerr << "Cannot add empty mesh" << std::endl;
+        return -1;
+    }
+
     MeshData md{};
     md.vertexOffset = static_cast<int32_t>(allVertices_.size());
     md.indexOffset = static_cast<uint32_t>(allIndices_.size());
-    md.indexCount = static_cast<uint32_t>(meshIndices.size());
+    md.indexCount = static_cast<uint32_t>(indices.size());
 
-    // Append to combined buffers
-    allVertices_.insert(allVertices_.end(), meshVertices.begin(), meshVertices.end());
-    allIndices_.insert(allIndices_.end(), meshIndices.begin(), meshIndices.end());
+    allVertices_.insert(allVertices_.end(), vertices.begin(), vertices.end());
+    allIndices_.insert(allIndices_.end(), indices.begin(), indices.end());
 
     int meshId = static_cast<int>(meshes_.size());
     meshes_.push_back(md);
     buffersNeedRebuild_ = true;
 
-    std::cout << "Loaded mesh " << meshId << ": " << meshVertices.size() << " vertices, "
-              << meshIndices.size() << " indices" << std::endl;
+    std::cout << "Added mesh " << meshId << ": " << vertices.size() << " vertices, "
+              << indices.size() << " indices" << std::endl;
     return meshId;
+}
+
+// ---------------------------------------------------------------------------
+// Procedural primitives
+// ---------------------------------------------------------------------------
+
+int VulkanRenderer::createBoxMesh(float width, float height, float length, float r, float g, float b) {
+    float hw = width * 0.5f, hh = height * 0.5f, hl = length * 0.5f;
+    glm::vec3 color(r, g, b);
+
+    std::vector<Vertex> verts;
+    std::vector<uint32_t> inds;
+    verts.reserve(24);
+    inds.reserve(36);
+
+    // Helper: add a face (4 verts + 6 indices)
+    auto addFace = [&](glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 n) {
+        uint32_t base = static_cast<uint32_t>(verts.size());
+        verts.push_back({p0, n, color});
+        verts.push_back({p1, n, color});
+        verts.push_back({p2, n, color});
+        verts.push_back({p3, n, color});
+        inds.push_back(base + 0); inds.push_back(base + 1); inds.push_back(base + 2);
+        inds.push_back(base + 0); inds.push_back(base + 2); inds.push_back(base + 3);
+    };
+
+    // +Z face
+    addFace({-hw, -hh,  hl}, { hw, -hh,  hl}, { hw,  hh,  hl}, {-hw,  hh,  hl}, { 0, 0, 1});
+    // -Z face
+    addFace({ hw, -hh, -hl}, {-hw, -hh, -hl}, {-hw,  hh, -hl}, { hw,  hh, -hl}, { 0, 0,-1});
+    // +Y face
+    addFace({-hw,  hh,  hl}, { hw,  hh,  hl}, { hw,  hh, -hl}, {-hw,  hh, -hl}, { 0, 1, 0});
+    // -Y face
+    addFace({-hw, -hh, -hl}, { hw, -hh, -hl}, { hw, -hh,  hl}, {-hw, -hh,  hl}, { 0,-1, 0});
+    // +X face
+    addFace({ hw, -hh,  hl}, { hw, -hh, -hl}, { hw,  hh, -hl}, { hw,  hh,  hl}, { 1, 0, 0});
+    // -X face
+    addFace({-hw, -hh, -hl}, {-hw, -hh,  hl}, {-hw,  hh,  hl}, {-hw,  hh, -hl}, {-1, 0, 0});
+
+    return addMesh(verts, inds);
+}
+
+int VulkanRenderer::createSphereMesh(float radius, int segments, int rings, float r, float g, float b) {
+    glm::vec3 color(r, g, b);
+    std::vector<Vertex> verts;
+    std::vector<uint32_t> inds;
+
+    for (int ring = 0; ring <= rings; ring++) {
+        float phi = static_cast<float>(M_PI) * static_cast<float>(ring) / static_cast<float>(rings);
+        float sinPhi = sinf(phi);
+        float cosPhi = cosf(phi);
+
+        for (int seg = 0; seg <= segments; seg++) {
+            float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+            float sinTheta = sinf(theta);
+            float cosTheta = cosf(theta);
+
+            glm::vec3 normal(sinPhi * cosTheta, cosPhi, sinPhi * sinTheta);
+            glm::vec3 pos = normal * radius;
+            verts.push_back({pos, normal, color});
+        }
+    }
+
+    for (int ring = 0; ring < rings; ring++) {
+        for (int seg = 0; seg < segments; seg++) {
+            uint32_t curr = static_cast<uint32_t>(ring * (segments + 1) + seg);
+            uint32_t next = curr + static_cast<uint32_t>(segments + 1);
+
+            inds.push_back(curr);
+            inds.push_back(next);
+            inds.push_back(curr + 1);
+
+            inds.push_back(curr + 1);
+            inds.push_back(next);
+            inds.push_back(next + 1);
+        }
+    }
+
+    return addMesh(verts, inds);
+}
+
+int VulkanRenderer::createPlaneMesh(float width, float height, float r, float g, float b) {
+    float hw = width * 0.5f, hh = height * 0.5f;
+    glm::vec3 color(r, g, b);
+    glm::vec3 normal(0.0f, 1.0f, 0.0f);
+
+    std::vector<Vertex> verts = {
+        {{-hw, 0.0f,  hh}, normal, color},
+        {{ hw, 0.0f,  hh}, normal, color},
+        {{ hw, 0.0f, -hh}, normal, color},
+        {{-hw, 0.0f, -hh}, normal, color},
+    };
+    std::vector<uint32_t> inds = { 0, 1, 2, 0, 2, 3 };
+
+    return addMesh(verts, inds);
+}
+
+int VulkanRenderer::createCylinderMesh(float radius, float height, int segments, float r, float g, float b) {
+    glm::vec3 color(r, g, b);
+    float halfH = height * 0.5f;
+
+    std::vector<Vertex> verts;
+    std::vector<uint32_t> inds;
+
+    // Side vertices: 2 rings of (segments+1) vertices
+    for (int seg = 0; seg <= segments; seg++) {
+        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+        float cosT = cosf(theta);
+        float sinT = sinf(theta);
+        glm::vec3 normal(cosT, 0.0f, sinT);
+
+        // Bottom ring
+        verts.push_back({{radius * cosT, -halfH, radius * sinT}, normal, color});
+        // Top ring
+        verts.push_back({{radius * cosT,  halfH, radius * sinT}, normal, color});
+    }
+
+    // Side indices
+    for (int seg = 0; seg < segments; seg++) {
+        uint32_t bl = static_cast<uint32_t>(seg * 2);
+        uint32_t tl = bl + 1;
+        uint32_t br = bl + 2;
+        uint32_t tr = bl + 3;
+
+        inds.push_back(bl); inds.push_back(br); inds.push_back(tl);
+        inds.push_back(tl); inds.push_back(br); inds.push_back(tr);
+    }
+
+    // Top cap
+    uint32_t topCenter = static_cast<uint32_t>(verts.size());
+    verts.push_back({{0.0f, halfH, 0.0f}, {0.0f, 1.0f, 0.0f}, color});
+    uint32_t topRimStart = static_cast<uint32_t>(verts.size());
+    for (int seg = 0; seg < segments; seg++) {
+        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+        verts.push_back({{radius * cosf(theta), halfH, radius * sinf(theta)}, {0.0f, 1.0f, 0.0f}, color});
+    }
+    for (int seg = 0; seg < segments; seg++) {
+        uint32_t next = (seg + 1) % segments;
+        inds.push_back(topCenter);
+        inds.push_back(topRimStart + static_cast<uint32_t>(seg));
+        inds.push_back(topRimStart + static_cast<uint32_t>(next));
+    }
+
+    // Bottom cap
+    uint32_t botCenter = static_cast<uint32_t>(verts.size());
+    verts.push_back({{0.0f, -halfH, 0.0f}, {0.0f, -1.0f, 0.0f}, color});
+    uint32_t botRimStart = static_cast<uint32_t>(verts.size());
+    for (int seg = 0; seg < segments; seg++) {
+        float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+        verts.push_back({{radius * cosf(theta), -halfH, radius * sinf(theta)}, {0.0f, -1.0f, 0.0f}, color});
+    }
+    for (int seg = 0; seg < segments; seg++) {
+        uint32_t next = (seg + 1) % segments;
+        inds.push_back(botCenter);
+        inds.push_back(botRimStart + static_cast<uint32_t>(next));
+        inds.push_back(botRimStart + static_cast<uint32_t>(seg));
+    }
+
+    return addMesh(verts, inds);
+}
+
+int VulkanRenderer::createCapsuleMesh(float radius, float height, int segments, int rings, float r, float g, float b) {
+    glm::vec3 color(r, g, b);
+    float halfH = height * 0.5f;
+    // rings must be even for hemisphere split
+    int halfRings = rings / 2;
+
+    std::vector<Vertex> verts;
+    std::vector<uint32_t> inds;
+
+    // Top hemisphere (rings 0..halfRings), offset up by halfH
+    for (int ring = 0; ring <= halfRings; ring++) {
+        float phi = static_cast<float>(M_PI) * 0.5f * static_cast<float>(ring) / static_cast<float>(halfRings);
+        float sinPhi = sinf(phi);
+        float cosPhi = cosf(phi);
+
+        for (int seg = 0; seg <= segments; seg++) {
+            float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+            glm::vec3 normal(sinPhi * cosf(theta), cosPhi, sinPhi * sinf(theta));
+            glm::vec3 pos = normal * radius + glm::vec3(0.0f, halfH, 0.0f);
+            verts.push_back({pos, normal, color});
+        }
+    }
+
+    // Cylinder body: 2 extra rings at the equator connecting top and bottom hemispheres
+    // Top equator ring is already the last ring of the top hemisphere (ring == halfRings)
+    // We add the bottom equator ring
+    {
+        for (int seg = 0; seg <= segments; seg++) {
+            float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+            float cosT = cosf(theta);
+            float sinT = sinf(theta);
+            glm::vec3 normal(cosT, 0.0f, sinT);
+            glm::vec3 pos(radius * cosT, -halfH, radius * sinT);
+            verts.push_back({pos, normal, color});
+        }
+    }
+
+    // Bottom hemisphere (rings 0..halfRings), offset down by halfH
+    // ring 0 = equator (already added), so start from ring 1
+    for (int ring = 1; ring <= halfRings; ring++) {
+        float phi = static_cast<float>(M_PI) * 0.5f + static_cast<float>(M_PI) * 0.5f * static_cast<float>(ring) / static_cast<float>(halfRings);
+        float sinPhi = sinf(phi);
+        float cosPhi = cosf(phi);
+
+        for (int seg = 0; seg <= segments; seg++) {
+            float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(seg) / static_cast<float>(segments);
+            glm::vec3 normal(sinPhi * cosf(theta), cosPhi, sinPhi * sinf(theta));
+            glm::vec3 pos = normal * radius + glm::vec3(0.0f, -halfH, 0.0f);
+            verts.push_back({pos, normal, color});
+        }
+    }
+
+    // Index generation
+    // Total ring rows: halfRings (top hemi) + 1 (cylinder body) + halfRings (bottom hemi)
+    int totalRows = halfRings + 1 + halfRings;
+    for (int row = 0; row < totalRows; row++) {
+        for (int seg = 0; seg < segments; seg++) {
+            uint32_t curr = static_cast<uint32_t>(row * (segments + 1) + seg);
+            uint32_t next = curr + static_cast<uint32_t>(segments + 1);
+
+            inds.push_back(curr);
+            inds.push_back(next);
+            inds.push_back(curr + 1);
+
+            inds.push_back(curr + 1);
+            inds.push_back(next);
+            inds.push_back(next + 1);
+        }
+    }
+
+    return addMesh(verts, inds);
 }
 
 int VulkanRenderer::createEntity(int meshId) {

@@ -140,6 +140,53 @@ float renderer_get_total_time() {
     return g_renderer.getTotalTime();
 }
 
+// --- Procedural Primitives API ---
+
+int renderer_create_box_mesh(float w, float h, float l, float r, float g, float b) {
+    try {
+        return g_renderer.createBoxMesh(w, h, l, r, g, b);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_box_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int renderer_create_sphere_mesh(float radius, int segments, int rings, float r, float g, float b) {
+    try {
+        return g_renderer.createSphereMesh(radius, segments, rings, r, g, b);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_sphere_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int renderer_create_plane_mesh(float w, float h, float r, float g, float b) {
+    try {
+        return g_renderer.createPlaneMesh(w, h, r, g, b);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_plane_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int renderer_create_cylinder_mesh(float radius, float height, int segments, float r, float g, float b) {
+    try {
+        return g_renderer.createCylinderMesh(radius, height, segments, r, g, b);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_cylinder_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int renderer_create_capsule_mesh(float radius, float height, int segments, int rings, float r, float g, float b) {
+    try {
+        return g_renderer.createCapsuleMesh(radius, height, segments, rings, r, g, b);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_capsule_mesh error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
 // --- Lighting API ---
 
 void renderer_set_light(int index, int type,

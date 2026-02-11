@@ -25,6 +25,7 @@ module.exports = {
             "features/camera",
             "features/input",
             "features/lighting",
+            "features/primitive-shapes",
             "features/rendering",
             "features/time"
         ]

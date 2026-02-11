@@ -66,6 +66,13 @@ namespace ECS
         [DllImport(LIB)] public static extern float renderer_get_delta_time();
         [DllImport(LIB)] public static extern float renderer_get_total_time();
 
+        // Procedural Primitives API
+        [DllImport(LIB)] public static extern int renderer_create_box_mesh(float w, float h, float l, float r, float g, float b);
+        [DllImport(LIB)] public static extern int renderer_create_sphere_mesh(float radius, int segments, int rings, float r, float g, float b);
+        [DllImport(LIB)] public static extern int renderer_create_plane_mesh(float w, float h, float r, float g, float b);
+        [DllImport(LIB)] public static extern int renderer_create_cylinder_mesh(float radius, float height, int segments, float r, float g, float b);
+        [DllImport(LIB)] public static extern int renderer_create_capsule_mesh(float radius, float height, int segments, int rings, float r, float g, float b);
+
         // Lighting API
         [DllImport(LIB)]
         public static extern void renderer_set_light(
@@ -144,6 +151,58 @@ namespace ECS
         public static void SetAmbient(float intensity)
         {
             renderer_set_ambient(intensity);
+        }
+
+        // Procedural Primitives — full parameter versions
+        public static int CreateBoxMesh(float w, float h, float l, float r, float g, float b)
+        {
+            return renderer_create_box_mesh(w, h, l, r, g, b);
+        }
+
+        public static int CreateSphereMesh(float radius, int segments, int rings, float r, float g, float b)
+        {
+            return renderer_create_sphere_mesh(radius, segments, rings, r, g, b);
+        }
+
+        public static int CreatePlaneMesh(float w, float h, float r, float g, float b)
+        {
+            return renderer_create_plane_mesh(w, h, r, g, b);
+        }
+
+        public static int CreateCylinderMesh(float radius, float height, int segments, float r, float g, float b)
+        {
+            return renderer_create_cylinder_mesh(radius, height, segments, r, g, b);
+        }
+
+        public static int CreateCapsuleMesh(float radius, float height, int segments, int rings, float r, float g, float b)
+        {
+            return renderer_create_capsule_mesh(radius, height, segments, rings, r, g, b);
+        }
+
+        // Procedural Primitives — convenience overloads (default color=grey 0.7, segments=32, rings=16)
+        public static int CreateBoxMesh(float w, float h, float l)
+        {
+            return renderer_create_box_mesh(w, h, l, 0.7f, 0.7f, 0.7f);
+        }
+
+        public static int CreateSphereMesh(float radius)
+        {
+            return renderer_create_sphere_mesh(radius, 32, 16, 0.7f, 0.7f, 0.7f);
+        }
+
+        public static int CreatePlaneMesh(float w, float h)
+        {
+            return renderer_create_plane_mesh(w, h, 0.7f, 0.7f, 0.7f);
+        }
+
+        public static int CreateCylinderMesh(float radius, float height)
+        {
+            return renderer_create_cylinder_mesh(radius, height, 32, 0.7f, 0.7f, 0.7f);
+        }
+
+        public static int CreateCapsuleMesh(float radius, float height)
+        {
+            return renderer_create_capsule_mesh(radius, height, 32, 16, 0.7f, 0.7f, 0.7f);
         }
 
         public static bool IsMouseButtonPressed(int button)

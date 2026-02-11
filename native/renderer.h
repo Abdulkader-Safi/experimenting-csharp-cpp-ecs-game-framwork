@@ -116,6 +116,13 @@ public:
     // Multi-entity API
     int loadMesh(const char* path);
     int createEntity(int meshId);
+
+    // Procedural primitives
+    int createBoxMesh(float width, float height, float length, float r, float g, float b);
+    int createSphereMesh(float radius, int segments, int rings, float r, float g, float b);
+    int createPlaneMesh(float width, float height, float r, float g, float b);
+    int createCylinderMesh(float radius, float height, int segments, float r, float g, float b);
+    int createCapsuleMesh(float radius, float height, int segments, int rings, float r, float g, float b);
     void setEntityTransform(int entityId, const float* mat4x4);
     void removeEntity(int entityId);
 
@@ -273,6 +280,7 @@ private:
 
     // Multi-entity
     void rebuildGeometryBuffers();
+    int addMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
     // Helpers
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;

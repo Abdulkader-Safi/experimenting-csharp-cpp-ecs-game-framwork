@@ -18,6 +18,7 @@
 | Spawn/despawn with native cleanup                       | Done   |
 | Parent-child entity hierarchy                           | Done   |
 | First-person / third-person camera                      | Done   |
+| Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
 
 --https://bevy.org/-
 
@@ -27,6 +28,7 @@
 
 - [ ] **Textures & UV mapping** — Load textures from glTF, sample in fragment shader, add UV coords to vertex format
 - [ ] **PBR materials** — Metallic/roughness workflow (base color, metallic, roughness, emissive maps)
+- [x] **Procedural primitives** — Box, sphere, plane, cylinder, capsule generated without external files
 - [x] **Multiple lights** — Point, directional, spot lights as ECS entities with position/color/intensity
 - [ ] **Shadows** — Shadow mapping (at minimum one directional light)
 - [ ] **Transparency / alpha blending** — Separate pass for transparent objects, sorted back-to-front
@@ -129,10 +131,37 @@
 5. ~~Spawn/despawn at runtime~~ ✓
 6. ~~Timers~~ ✓
 
-**Phase 2 — Make it look good:** 7. Textures & UV mapping 8. PBR materials 9. Multiple lights 10. Shadows 11. Skybox 12. MSAA
+**Phase 2 — Make it look good:** 
 
-**Phase 3 — Make it a game:** 13. Collision detection (AABB) 14. Rigid body physics (gravity, velocity) 15. Raycasting 16. Health/damage system 17. Audio playback + spatial audio 18. Event system
+7. Textures & UV mapping 
+8. PBR materials
+9. Multiple lights 
+10. Shadows
+11. Skybox 
+12. MSAA
 
-**Phase 4 — Polish:** 19. Text rendering / HUD 20. Skeletal animation playback 21. Animation blending 22. Menu system 23. Input action mapping 24. Gamepad support
+**Phase 3 — Make it a game:** 
 
-**Phase 5 — Advanced:** 25. Pathfinding / AI state machines 26. Scene save/load 27. Instanced rendering 28. Hot reloading 29. Cross-platform builds
+13. Collision detection (AABB) 
+14. Rigid body physics (gravity, velocity) 
+15. Raycasting 
+16. Health/damage system 
+17. Audio playback + spatial audio 
+18. Event system
+
+**Phase 4 — Polish:**
+
+19. Text rendering / HUD 
+20. Skeletal animation playback 
+21. Animation blending 
+22. Menu system 
+23. Input action mapping 
+24. Gamepad support
+
+**Phase 5 — Advanced:** 
+
+25. Pathfinding / AI state machines 
+26. Scene save/load 
+27. Instanced rendering 
+28. Hot reloading 
+29. Cross-platform builds

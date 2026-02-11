@@ -37,6 +37,38 @@ NativeBridge.RemoveEntity(entityId);
 | `SetEntityTransform(id, matrix)` | `void` | Set 4x4 model matrix (column-major `float[16]`) |
 | `RemoveEntity(id)` | `void` | Destroy a draw slot |
 
+## Procedural Primitives
+
+Generate meshes for common 3D shapes without external model files. Each method returns a mesh ID usable with `CreateEntity()`.
+
+```csharp
+int box  = NativeBridge.CreateBoxMesh(2f, 1f, 3f, 0.8f, 0.2f, 0.2f);
+int sph  = NativeBridge.CreateSphereMesh(0.5f, 32, 16, 0.2f, 0.8f, 0.2f);
+int pln  = NativeBridge.CreatePlaneMesh(10f, 10f, 0.3f, 0.8f, 0.3f);
+int cyl  = NativeBridge.CreateCylinderMesh(0.4f, 1f, 32, 0.2f, 0.2f, 0.8f);
+int cap  = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f, 32, 16, 0.9f, 0.8f, 0.2f);
+```
+
+| Method | Parameters | Description |
+|---|---|---|
+| `CreateBoxMesh` | `w, h, l, r, g, b` | Axis-aligned box (width, height, length) |
+| `CreateSphereMesh` | `radius, segments, rings, r, g, b` | UV sphere |
+| `CreatePlaneMesh` | `w, h, r, g, b` | Flat quad on XZ plane |
+| `CreateCylinderMesh` | `radius, height, segments, r, g, b` | Capped cylinder along Y |
+| `CreateCapsuleMesh` | `radius, height, segments, rings, r, g, b` | Cylinder with hemisphere caps |
+
+All shapes have convenience overloads that use default grey color (`0.7`) and default tessellation (32 segments, 16 rings):
+
+```csharp
+int box = NativeBridge.CreateBoxMesh(1f, 1f, 1f);
+int sph = NativeBridge.CreateSphereMesh(0.5f);
+int pln = NativeBridge.CreatePlaneMesh(10f, 10f);
+int cyl = NativeBridge.CreateCylinderMesh(0.4f, 1f);
+int cap = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f);
+```
+
+See [Primitive Shapes](../features/primitive-shapes.md) for full parameter tables and ECS usage examples.
+
 ## Camera
 
 ```csharp

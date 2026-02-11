@@ -16,6 +16,10 @@ int meshId = NativeBridge.LoadMesh("models/Box.glb");
 
 The returned `meshId` identifies the geometry on the GPU. You can share it across multiple entities.
 
+## Procedural Primitives
+
+The engine can also generate meshes for common shapes (box, sphere, plane, cylinder, capsule) without any external files. See [Primitive Shapes](primitive-shapes.md) for the full API and examples.
+
 ## Multi-Entity Rendering
 
 Each entity gets its own draw slot in the renderer. The model matrix is passed via Vulkan push constants:
