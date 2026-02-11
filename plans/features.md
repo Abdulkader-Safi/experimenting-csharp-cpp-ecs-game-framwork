@@ -1,23 +1,23 @@
 ## What You Already Have
 
-| Feature                                                 | Status |
-| ------------------------------------------------------- | ------ |
-| ECS (World, Entities, Components, Systems, Queries)     | Done   |
-| 3D Mesh loading (glTF)                                  | Done   |
-| Multi-entity rendering (push constants)                 | Done   |
-| Transform component (position, rotation, scale, matrix) | Done   |
-| Orbit camera (keyboard + mouse look, ESC toggle)        | Done   |
-| Keyboard input (polling)                                | Done   |
-| Mouse input (position, cursor lock)                     | Done   |
-| Depth testing / back-face culling                       | Done   |
-| Multiple dynamic lights (directional/point/spot, max 8) | Done   |
-| Delta time (native C++ via glfwGetTime)                 | Done   |
-| macOS .app bundle                                       | Done   |
-| Mouse buttons + scroll wheel                            | Done   |
-| Timers (countdown/interval)                             | Done   |
-| Spawn/despawn with native cleanup                       | Done   |
-| Parent-child entity hierarchy                           | Done   |
-| First-person / third-person camera                      | Done   |
+| Feature                                                       | Status |
+| ------------------------------------------------------------- | ------ |
+| ECS (World, Entities, Components, Systems, Queries)           | Done   |
+| 3D Mesh loading (glTF)                                        | Done   |
+| Multi-entity rendering (push constants)                       | Done   |
+| Transform component (position, rotation, scale, matrix)       | Done   |
+| Orbit camera (keyboard + mouse look, ESC toggle)              | Done   |
+| Keyboard input (polling)                                      | Done   |
+| Mouse input (position, cursor lock)                           | Done   |
+| Depth testing / back-face culling                             | Done   |
+| Multiple dynamic lights (directional/point/spot, max 8)       | Done   |
+| Delta time (native C++ via glfwGetTime)                       | Done   |
+| macOS .app bundle                                             | Done   |
+| Mouse buttons + scroll wheel                                  | Done   |
+| Timers (countdown/interval)                                   | Done   |
+| Spawn/despawn with native cleanup                             | Done   |
+| Parent-child entity hierarchy                                 | Done   |
+| First-person / third-person camera                            | Done   |
 | Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
 
 --https://bevy.org/-
@@ -42,7 +42,6 @@
 - [ ] **Skeletal animation** — Bone hierarchy, skinning weights, joint transforms from glTF skins
 - [ ] **Animation playback** — Play/pause/loop animation clips from glTF
 - [ ] **Animation blending** — Crossfade between clips (idle → walk → run)
-- [ ] **Morph targets / blend shapes** — Vertex-level deformation (facial expressions)
 
 ### 3. Physics & Collision
 
@@ -131,37 +130,37 @@
 5. ~~Spawn/despawn at runtime~~ ✓
 6. ~~Timers~~ ✓
 
-**Phase 2 — Make it look good:** 
+**Phase 2 — Make it look good:**
 
-7. Textures & UV mapping 
+7. Textures & UV mapping
 8. PBR materials
-9. Multiple lights 
+9. Multiple lights
 10. Shadows
-11. Skybox 
+11. Skybox
 12. MSAA
 
-**Phase 3 — Make it a game:** 
+**Phase 3 — Make it a game:**
 
-13. Collision detection (AABB) 
-14. Rigid body physics (gravity, velocity) 
-15. Raycasting 
-16. Health/damage system 
-17. Audio playback + spatial audio 
+13. Collision detection (AABB)
+14. Rigid body physics (gravity, velocity)
+15. Raycasting
+16. Health/damage system
+17. Audio playback + spatial audio
 18. Event system
 
 **Phase 4 — Polish:**
 
-19. Text rendering / HUD 
-20. Skeletal animation playback 
-21. Animation blending 
-22. Menu system 
-23. Input action mapping 
+19. Text rendering / HUD
+20. Skeletal animation playback
+21. Animation blending
+22. Menu system
+23. Input action mapping
 24. Gamepad support
 
-**Phase 5 — Advanced:** 
+**Phase 5 — Advanced:**
 
-25. Pathfinding / AI state machines 
-26. Scene save/load 
-27. Instanced rendering 
-28. Hot reloading 
+25. Pathfinding / AI state machines
+26. Scene save/load
+27. Instanced rendering
+28. Hot reloading
 29. Cross-platform builds
