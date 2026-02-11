@@ -12,8 +12,10 @@ managed/
   ecs/
     World.cs             # ECS world: entities, components, systems, queries
     Components.cs        # Built-in: Transform, MeshComponent, Movable, Camera, Light
-    Systems.cs           # Built-in: InputMovement, CameraFollow, LightSync, RenderSync
+    Systems.cs           # Built-in: InputMovement, FreeCamera, CameraFollow, LightSync, RenderSync
     NativeBridge.cs      # All P/Invoke declarations + convenience wrappers
+    FreeCameraState.cs   # Static state for the debug free camera
+    GameConstants.cs     # Tunable config values (debug, sensitivity, speed)
 
 native/
   renderer.h             # VulkanRenderer class declaration

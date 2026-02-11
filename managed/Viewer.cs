@@ -119,6 +119,7 @@ class Viewer
         // Register systems
         world.AddSystem(Systems.InputMovementSystem);
         world.AddSystem(Systems.TimerSystem);
+        world.AddSystem(Systems.FreeCameraSystem);
         world.AddSystem(Systems.CameraFollowSystem);
         world.AddSystem(Systems.LightSyncSystem);
         world.AddSystem(Systems.HierarchyTransformSystem);

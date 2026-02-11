@@ -2,7 +2,7 @@
 
 A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop and all game logic through an Entity Component System, while a C++ shared library handles Vulkan rendering — connected via Mono P/Invoke.
 
-![Safi ECS Game Engine](assets/img2.png)
+![Safi ECS Game Engine](assets/img3.png)
 
 ## Features
 
@@ -12,6 +12,7 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - **Multi-Entity Rendering** — Spawn multiple entities with independent transforms using per-entity push constants
 - **Dynamic Lighting** — Up to 8 simultaneous lights (directional, point, spot) with Blinn-Phong shading
 - **Orbit Camera** — Spherical orbit camera with mouse look, keyboard controls, and cursor lock toggle
+- **Free Camera** — Debug fly camera (WASD + mouse look) toggled with 0/1 keys when debug mode is enabled
 - **Keyboard & Mouse Input** — WASD/arrow key movement, mouse look with sensitivity, ESC cursor capture
 - **Delta Time** — Frame-independent movement via native-side GLFW timing
 - **macOS App Bundle** — Packageable as a standalone `.app` with embedded runtime and assets
@@ -36,13 +37,28 @@ This compiles GLSL shaders to SPIR-V, builds the C++ shared library via CMake, c
 
 ### Controls
 
-| Input | Action |
-| --- | --- |
-| WASD / Arrow Keys | Rotate player entity |
-| ESC | Toggle cursor lock for mouse look |
-| Mouse (when locked) | Orbit camera yaw/pitch |
-| Q / E | Camera yaw |
-| R / F | Camera pitch |
+#### Player Camera (default)
+
+| Input               | Action                             |
+| ------------------- | ---------------------------------- |
+| WASD / Arrow Keys   | Rotate player entity               |
+| ESC                 | Toggle cursor lock for mouse look  |
+| Mouse (when locked) | Orbit camera yaw/pitch             |
+| Q / E               | Camera yaw                         |
+| R / F               | Camera pitch                       |
+| Scroll wheel        | Zoom in/out (third-person)         |
+| TAB                 | Toggle first-person / third-person |
+
+#### Free Camera (debug)
+
+| Input               | Action                                          |
+| ------------------- | ----------------------------------------------- |
+| 0                   | Activate free camera (debug mode only)          |
+| 1                   | Deactivate free camera, return to player camera |
+| WASD                | Fly forward/back/left/right                     |
+| Q / E               | Fly down / up                                   |
+| Mouse (when locked) | Look around                                     |
+| ESC                 | Toggle cursor lock                              |
 
 ## Architecture
 
@@ -59,7 +75,7 @@ The C# side owns the game loop and all ECS logic. Each frame it queries entities
 ### ECS Pattern
 
 - **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`
-- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `CameraFollowSystem` → `LightSyncSystem` → `RenderSyncSystem`
+- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `RenderSyncSystem`
 - **World** — Manages entity lifecycles, component storage, system registration, and delta time
 
 System execution order matters — `RenderSyncSystem` must always run last.
@@ -76,15 +92,15 @@ Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 
 ## Make Targets
 
-| Target | Description |
-| --- | --- |
-| `make run` | Build everything and run the viewer |
-| `make viewer` | Build shaders + native lib + C# exe |
-| `make app` | Build macOS `.app` bundle |
-| `make shaders` | Compile GLSL → SPIR-V only |
-| `make clean` | Remove all build artifacts |
-| `make all` | Build hello demo (basic P/Invoke test) |
-| `make help` | Show available targets |
+| Target         | Description                            |
+| -------------- | -------------------------------------- |
+| `make run`     | Build everything and run the viewer    |
+| `make viewer`  | Build shaders + native lib + C# exe    |
+| `make app`     | Build macOS `.app` bundle              |
+| `make shaders` | Compile GLSL → SPIR-V only             |
+| `make clean`   | Remove all build artifacts             |
+| `make all`     | Build hello demo (basic P/Invoke test) |
+| `make help`    | Show available targets                 |
 
 ## Project Structure
 
@@ -108,7 +124,9 @@ Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 │       ├── World.cs                 # ECS world: entities, components, systems
 │       ├── Components.cs            # Transform, MeshComponent, Movable, Light, Camera
 │       ├── Systems.cs               # Input, camera, lighting, render sync systems
-│       └── NativeBridge.cs          # P/Invoke bindings to C++ renderer
+│       ├── NativeBridge.cs          # P/Invoke bindings to C++ renderer
+│       ├── FreeCameraState.cs       # Static state for the debug free camera
+│       └── GameConstants.cs         # Tunable config values (debug, sensitivity, speed)
 ├── models/                          # glTF models (.glb)
 ├── docs/                            # Docusaurus documentation site
 ├── plans/                           # Roadmap and planning docs
@@ -128,6 +146,6 @@ cd docs && bun run build                  # Production build
 
 The engine currently implements 16 core features. The [full roadmap](plans/features.md) tracks 100+ planned features across rendering (textures, PBR, shadows), animation (skeletal, blending), physics (collision, rigidbody), scene management, audio, UI, AI, and cross-platform support including web export.
 
-## License
+## Support
 
-See [LICENSE](LICENSE) for details.
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J3J11RP7T5)

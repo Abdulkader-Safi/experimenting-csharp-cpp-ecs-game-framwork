@@ -321,12 +321,12 @@ int VulkanRenderer::createSphereMesh(float radius, int segments, int rings, floa
             uint32_t next = curr + static_cast<uint32_t>(segments + 1);
 
             inds.push_back(curr);
-            inds.push_back(next);
             inds.push_back(curr + 1);
+            inds.push_back(next);
 
             inds.push_back(curr + 1);
-            inds.push_back(next);
             inds.push_back(next + 1);
+            inds.push_back(next);
         }
     }
 
@@ -376,8 +376,8 @@ int VulkanRenderer::createCylinderMesh(float radius, float height, int segments,
         uint32_t br = bl + 2;
         uint32_t tr = bl + 3;
 
-        inds.push_back(bl); inds.push_back(br); inds.push_back(tl);
-        inds.push_back(tl); inds.push_back(br); inds.push_back(tr);
+        inds.push_back(bl); inds.push_back(tl); inds.push_back(br);
+        inds.push_back(tl); inds.push_back(tr); inds.push_back(br);
     }
 
     // Top cap
@@ -391,8 +391,8 @@ int VulkanRenderer::createCylinderMesh(float radius, float height, int segments,
     for (int seg = 0; seg < segments; seg++) {
         uint32_t next = (seg + 1) % segments;
         inds.push_back(topCenter);
-        inds.push_back(topRimStart + static_cast<uint32_t>(seg));
         inds.push_back(topRimStart + static_cast<uint32_t>(next));
+        inds.push_back(topRimStart + static_cast<uint32_t>(seg));
     }
 
     // Bottom cap
@@ -406,8 +406,8 @@ int VulkanRenderer::createCylinderMesh(float radius, float height, int segments,
     for (int seg = 0; seg < segments; seg++) {
         uint32_t next = (seg + 1) % segments;
         inds.push_back(botCenter);
-        inds.push_back(botRimStart + static_cast<uint32_t>(next));
         inds.push_back(botRimStart + static_cast<uint32_t>(seg));
+        inds.push_back(botRimStart + static_cast<uint32_t>(next));
     }
 
     return addMesh(verts, inds);
@@ -474,12 +474,12 @@ int VulkanRenderer::createCapsuleMesh(float radius, float height, int segments, 
             uint32_t next = curr + static_cast<uint32_t>(segments + 1);
 
             inds.push_back(curr);
-            inds.push_back(next);
             inds.push_back(curr + 1);
+            inds.push_back(next);
 
             inds.push_back(curr + 1);
-            inds.push_back(next);
             inds.push_back(next + 1);
+            inds.push_back(next);
         }
     }
 

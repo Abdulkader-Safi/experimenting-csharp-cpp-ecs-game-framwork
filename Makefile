@@ -12,7 +12,7 @@ EXE = $(BUILD_DIR)/Program.exe
 # Viewer config
 VIEWER_DYLIB = $(BUILD_DIR)/librenderer.dylib
 VIEWER_EXE = $(BUILD_DIR)/Viewer.exe
-VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs managed/ecs/Systems.cs managed/ecs/NativeBridge.cs
+VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs managed/ecs/Systems.cs managed/ecs/NativeBridge.cs managed/ecs/GameConstants.cs managed/ecs/FreeCameraState.cs
 SHADER_DIR = $(BUILD_DIR)/shaders
 VERT_SPV = $(SHADER_DIR)/vert.spv
 FRAG_SPV = $(SHADER_DIR)/frag.spv

@@ -19,14 +19,16 @@ if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
 
 ### Available Key Constants
 
-| Constant | Key |
-|---|---|
-| `GLFW_KEY_W/A/S/D` | WASD movement |
-| `GLFW_KEY_Q/E` | Camera yaw |
-| `GLFW_KEY_R/F` | Camera pitch |
-| `GLFW_KEY_ESCAPE` | Toggle cursor lock |
-| `GLFW_KEY_TAB` | Toggle camera mode (FP/TP) |
-| `GLFW_KEY_UP/DOWN/LEFT/RIGHT` | Arrow keys |
+| Constant                      | Key                          |
+| ----------------------------- | ---------------------------- |
+| `GLFW_KEY_W/A/S/D`            | WASD movement                |
+| `GLFW_KEY_Q/E`                | Camera yaw                   |
+| `GLFW_KEY_R/F`                | Camera pitch                 |
+| `GLFW_KEY_ESCAPE`             | Toggle cursor lock           |
+| `GLFW_KEY_TAB`                | Toggle camera mode (FP/TP)   |
+| `GLFW_KEY_0`                  | Activate free camera (debug) |
+| `GLFW_KEY_1`                  | Deactivate free camera       |
+| `GLFW_KEY_UP/DOWN/LEFT/RIGHT` | Arrow keys                   |
 
 For other keys, pass the [GLFW key code](https://www.glfw.org/docs/latest/group__keys.html) integer directly.
 
@@ -65,11 +67,11 @@ if (NativeBridge.IsMouseButtonPressed(NativeBridge.GLFW_MOUSE_BUTTON_LEFT))
 
 ### Button Constants
 
-| Constant | Value | Button |
-|---|---|---|
-| `GLFW_MOUSE_BUTTON_LEFT` | `0` | Left click |
-| `GLFW_MOUSE_BUTTON_RIGHT` | `1` | Right click |
-| `GLFW_MOUSE_BUTTON_MIDDLE` | `2` | Middle click (scroll wheel press) |
+| Constant                   | Value | Button                            |
+| -------------------------- | ----- | --------------------------------- |
+| `GLFW_MOUSE_BUTTON_LEFT`   | `0`   | Left click                        |
+| `GLFW_MOUSE_BUTTON_RIGHT`  | `1`   | Right click                       |
+| `GLFW_MOUSE_BUTTON_MIDDLE` | `2`   | Middle click (scroll wheel press) |
 
 ## Scroll Wheel
 
@@ -81,12 +83,16 @@ NativeBridge.GetScrollOffset(out scrollX, out scrollY);
 NativeBridge.ResetScrollOffset();
 ```
 
-| Method | Description |
-|---|---|
+| Method                                      | Description                                    |
+| ------------------------------------------- | ---------------------------------------------- |
 | `GetScrollOffset(out float x, out float y)` | Read accumulated scroll delta since last reset |
-| `ResetScrollOffset()` | Reset the scroll accumulator to zero |
+| `ResetScrollOffset()`                       | Reset the scroll accumulator to zero           |
 
 The `CameraFollowSystem` uses scroll wheel for third-person camera zoom automatically.
+
+:::note
+When the free camera is active (press 0), `InputMovementSystem` is disabled — WASD controls only the free camera. Press 1 to return to normal controls.
+:::
 
 ## Input in Systems
 

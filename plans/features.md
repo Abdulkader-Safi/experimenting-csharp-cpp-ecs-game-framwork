@@ -19,6 +19,8 @@
 | Parent-child entity hierarchy                                 | Done   |
 | First-person / third-person camera                            | Done   |
 | Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
+| Free camera (debug fly camera, press 0/1 to toggle)          | Done   |
+| GameConstants (tunable config values)                         | Done   |
 
 --https://bevy.org/-
 

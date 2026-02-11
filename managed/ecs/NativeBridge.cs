@@ -22,6 +22,8 @@ namespace ECS
         public const int GLFW_KEY_F = 70;
         public const int GLFW_KEY_ESCAPE = 256;
         public const int GLFW_KEY_TAB = 258;
+        public const int GLFW_KEY_0 = 48;
+        public const int GLFW_KEY_1 = 49;
 
         // GLFW mouse button codes
         public const int GLFW_MOUSE_BUTTON_LEFT = 0;

@@ -14,7 +14,7 @@ All built-in systems live in `managed/ecs/Systems.cs`.
 
 Queries: `Movable` + `Transform`
 
-Applies WASD/arrow key rotation to movable entities. Movement speed is multiplied by `world.DeltaTime` for frame-independent rotation.
+Applies WASD/arrow key rotation to movable entities. Movement speed is multiplied by `world.DeltaTime` for frame-independent rotation. **Disabled when the free camera is active** — returns early so WASD only controls the free camera.
 
 ### TimerSystem
 
@@ -25,9 +25,26 @@ Ticks all `Timer` components each frame using `world.DeltaTime`:
 - **One-shot timers** (`Repeat = false`): `Finished` is set to `true` once and the timer stops advancing
 - **Interval timers** (`Repeat = true`): `Finished` is set to `true` each cycle, and `Elapsed` wraps by subtracting `Duration`
 
+### FreeCameraSystem
+
+No query — uses static `FreeCameraState`.
+
+A debug fly camera for inspecting the scene freely. Only activates when `GameConstants.Debug` is `true`. Press **0** to activate, **1** to deactivate.
+
+When active:
+
+- **WASD** — fly forward/back/strafe left/right
+- **Q/E** — fly down/up
+- **Mouse** — look around (when cursor is locked)
+- **ESC** — toggle cursor lock
+
+Sensitivity and speed come from `GameConstants.FreeCamSensitivity` and `GameConstants.FreeCamSpeed`. Overrides the camera directly via `NativeBridge.SetCamera()`. Both `InputMovementSystem` and `CameraFollowSystem` return early when the free camera is active.
+
 ### CameraFollowSystem
 
 Queries: `Camera` + `Transform`
+
+**Disabled when the free camera is active** — returns early.
 
 Handles both camera modes:
 
@@ -35,6 +52,7 @@ Handles both camera modes:
 - **First-person** (Mode 1): Places the camera at entity position + `EyeHeight`, looking along yaw/pitch direction.
 
 Controls:
+
 - **Q/E** — yaw (horizontal orbit)
 - **R/F** — pitch (vertical orbit)
 - **Mouse** — free-look when cursor is locked
@@ -71,6 +89,7 @@ Systems run in the order they are added. **Order matters.**
 ```csharp
 world.AddSystem(Systems.InputMovementSystem);        // runs first
 world.AddSystem(Systems.TimerSystem);                 // tick timers
+world.AddSystem(Systems.FreeCameraSystem);            // debug fly camera (before CameraFollow)
 world.AddSystem(Systems.CameraFollowSystem);          // updates camera from input
 world.AddSystem(Systems.HierarchyTransformSystem);    // compute world transforms
 world.AddSystem(Systems.LightSyncSystem);             // syncs lights to GPU
@@ -114,6 +133,7 @@ world.AddSystem(GravitySystem);
 world.AddSystem(DespawnDeadSystem);
 world.AddSystem(Systems.InputMovementSystem);
 world.AddSystem(Systems.TimerSystem);
+world.AddSystem(Systems.FreeCameraSystem);
 world.AddSystem(Systems.CameraFollowSystem);
 world.AddSystem(Systems.HierarchyTransformSystem);
 world.AddSystem(Systems.LightSyncSystem);

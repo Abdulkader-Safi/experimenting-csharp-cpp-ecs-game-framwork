@@ -26,24 +26,26 @@ The C# `World` tracks entities and their components. Systems run each frame, que
 
 ## What's Implemented
 
-| Feature                                                 | Status |
-| ------------------------------------------------------- | ------ |
-| ECS (World, Entities, Components, Systems, Queries)     | Done   |
-| 3D Mesh loading (glTF)                                  | Done   |
-| Multi-entity rendering (push constants)                 | Done   |
-| Transform component (position, rotation, scale, matrix) | Done   |
-| Orbit camera (keyboard + mouse look, ESC toggle)        | Done   |
-| Keyboard input (polling)                                | Done   |
-| Mouse input (position, cursor lock)                     | Done   |
-| Depth testing / back-face culling                       | Done   |
-| Multiple dynamic lights (directional/point/spot, max 8) | Done   |
-| Delta time (native C++ via glfwGetTime)                 | Done   |
-| macOS .app bundle                                       | Done   |
-| Mouse buttons + scroll wheel                            | Done   |
-| Timers (countdown/interval)                             | Done   |
-| Runtime spawn/despawn with cleanup                      | Done   |
-| Parent-child entity hierarchy                           | Done   |
-| First-person / third-person camera                      | Done   |
+| Feature                                                       | Status |
+| ------------------------------------------------------------- | ------ |
+| ECS (World, Entities, Components, Systems, Queries)           | Done   |
+| 3D Mesh loading (glTF)                                        | Done   |
+| Multi-entity rendering (push constants)                       | Done   |
+| Transform component (position, rotation, scale, matrix)       | Done   |
+| Orbit camera (keyboard + mouse look, ESC toggle)              | Done   |
+| Keyboard input (polling)                                      | Done   |
+| Mouse input (position, cursor lock)                           | Done   |
+| Depth testing / back-face culling                             | Done   |
+| Multiple dynamic lights (directional/point/spot, max 8)       | Done   |
+| Delta time (native C++ via glfwGetTime)                       | Done   |
+| macOS .app bundle                                             | Done   |
+| Mouse buttons + scroll wheel                                  | Done   |
+| Timers (countdown/interval)                                   | Done   |
+| Runtime spawn/despawn with cleanup                            | Done   |
+| Parent-child entity hierarchy                                 | Done   |
+| First-person / third-person camera                            | Done   |
+| Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
+| Free camera (debug fly camera)                                | Done   |
 
 ## Next Steps
 

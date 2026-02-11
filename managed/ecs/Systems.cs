@@ -7,6 +7,8 @@ namespace ECS
     {
         public static void InputMovementSystem(World world)
         {
+            if (FreeCameraState.IsActive) return;
+
             List<int> entities = world.Query(typeof(Movable), typeof(Transform));
             foreach (int e in entities)
             {
@@ -51,8 +53,138 @@ namespace ECS
             }
         }
 
+        public static void FreeCameraSystem(World world)
+        {
+            // Key 0: activate free camera (edge-detected)
+            bool key0 = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_0);
+            if (key0 && !FreeCameraState.WasKey0Pressed && GameConstants.Debug)
+            {
+                FreeCameraState.IsActive = true;
+                FreeCameraState.MouseInitialized = false;
+            }
+            FreeCameraState.WasKey0Pressed = key0;
+
+            // Key 1: deactivate free camera (edge-detected)
+            bool key1 = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_1);
+            if (key1 && !FreeCameraState.WasKey1Pressed)
+            {
+                if (FreeCameraState.IsActive)
+                {
+                    FreeCameraState.IsActive = false;
+                    // Reset entity camera mouse state to avoid delta jump on switch back
+                    List<int> camEntities = world.Query(typeof(Camera));
+                    foreach (int e in camEntities)
+                    {
+                        var cam = world.GetComponent<Camera>(e);
+                        cam.MouseInitialized = false;
+                    }
+                    NativeBridge.ResetScrollOffset();
+                }
+            }
+            FreeCameraState.WasKey1Pressed = key1;
+
+            if (!FreeCameraState.IsActive) return;
+
+            float dt = world.DeltaTime;
+
+            // ESC toggle cursor lock (edge-detected, reuse entity camera's WasEscPressed for state)
+            bool escPressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_ESCAPE);
+            List<int> cameraEntities = world.Query(typeof(Camera));
+            foreach (int e in cameraEntities)
+            {
+                var cam = world.GetComponent<Camera>(e);
+                if (escPressed && !cam.WasEscPressed)
+                {
+                    bool locked = NativeBridge.IsCursorLocked();
+                    NativeBridge.SetCursorLocked(!locked);
+                    FreeCameraState.MouseInitialized = false;
+                }
+                cam.WasEscPressed = escPressed;
+            }
+
+            // Mouse look when cursor is locked
+            if (NativeBridge.IsCursorLocked())
+            {
+                double mx, my;
+                NativeBridge.GetCursorPos(out mx, out my);
+
+                if (!FreeCameraState.MouseInitialized)
+                {
+                    FreeCameraState.LastMouseX = mx;
+                    FreeCameraState.LastMouseY = my;
+                    FreeCameraState.MouseInitialized = true;
+                }
+                else
+                {
+                    double dx = mx - FreeCameraState.LastMouseX;
+                    double dy = my - FreeCameraState.LastMouseY;
+                    FreeCameraState.Yaw += (float)dx * GameConstants.FreeCamSensitivity;
+                    FreeCameraState.Pitch -= (float)dy * GameConstants.FreeCamSensitivity;
+                }
+
+                FreeCameraState.LastMouseX = mx;
+                FreeCameraState.LastMouseY = my;
+            }
+
+            // Clamp pitch
+            if (FreeCameraState.Pitch > 89f) FreeCameraState.Pitch = 89f;
+            if (FreeCameraState.Pitch < -89f) FreeCameraState.Pitch = -89f;
+
+            double yawRad = FreeCameraState.Yaw * Math.PI / 180.0;
+            double pitchRad = FreeCameraState.Pitch * Math.PI / 180.0;
+
+            // Forward and right vectors from yaw/pitch (yaw=0 faces -Z)
+            float fwdX = (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
+            float fwdY = (float)Math.Sin(pitchRad);
+            float fwdZ = -(float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
+
+            // Right vector (perpendicular to forward on XZ plane)
+            float rightX = (float)Math.Cos(yawRad);
+            float rightZ = (float)Math.Sin(yawRad);
+
+            float speed = GameConstants.FreeCamSpeed * dt;
+
+            // WASD movement
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
+            {
+                FreeCameraState.X += fwdX * speed;
+                FreeCameraState.Y += fwdY * speed;
+                FreeCameraState.Z += fwdZ * speed;
+            }
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_S))
+            {
+                FreeCameraState.X -= fwdX * speed;
+                FreeCameraState.Y -= fwdY * speed;
+                FreeCameraState.Z -= fwdZ * speed;
+            }
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_A))
+            {
+                FreeCameraState.X -= rightX * speed;
+                FreeCameraState.Z -= rightZ * speed;
+            }
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_D))
+            {
+                FreeCameraState.X += rightX * speed;
+                FreeCameraState.Z += rightZ * speed;
+            }
+
+            // Q down, E up
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_Q))
+                FreeCameraState.Y -= speed;
+            if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_E))
+                FreeCameraState.Y += speed;
+
+            // Set camera: look-at = position + forward direction
+            NativeBridge.SetCamera(
+                FreeCameraState.X, FreeCameraState.Y, FreeCameraState.Z,
+                FreeCameraState.X + fwdX, FreeCameraState.Y + fwdY, FreeCameraState.Z + fwdZ,
+                0f, 1f, 0f, FreeCameraState.Fov);
+        }
+
         public static void CameraFollowSystem(World world)
         {
+            if (FreeCameraState.IsActive) return;
+
             List<int> entities = world.Query(typeof(Camera), typeof(Transform));
             foreach (int e in entities)
             {
