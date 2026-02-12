@@ -1,41 +1,29 @@
-# Website
+# Rspress website
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+## Setup
 
-## Installation
-
-```bash
-yarn
-```
-
-## Local Development
+Install the dependencies:
 
 ```bash
-yarn start
+npm install
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+## Get started
 
-## Build
+Start the dev server:
 
 ```bash
-yarn build
+npm run dev
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
+Build the website for production:
 
 ```bash
-USE_SSH=true yarn deploy
+npm run build
 ```
 
-Not using SSH:
+Preview the production build locally:
 
 ```bash
-GIT_USER=<Your GitHub username> yarn deploy
+npm run preview
 ```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.

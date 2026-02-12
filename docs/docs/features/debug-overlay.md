@@ -1,7 +1,3 @@
----
-sidebar_position: 7
----
-
 # Debug Overlay
 
 The engine includes a debug overlay that displays real-time performance and scene information rendered directly on the GPU using a second Vulkan graphics pipeline.

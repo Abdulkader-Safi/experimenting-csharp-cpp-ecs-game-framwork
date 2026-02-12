@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Menu System
 
 :::info Planned

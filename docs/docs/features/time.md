@@ -1,7 +1,3 @@
----
-sidebar_position: 5
----
-
 # Delta Time
 
 The engine provides frame-independent timing through native C++ (`glfwGetTime`), exposed to C# via P/Invoke.

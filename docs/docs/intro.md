@@ -1,8 +1,3 @@
----
-sidebar_position: 1
-slug: /intro
----
-
 # Safi Game Engine
 
 A **Bevy-inspired Entity Component System** where C# owns the game logic (components, systems, queries) and C++ is the rendering backend (Vulkan, multi-entity draw calls).
@@ -49,6 +44,7 @@ The C# `World` tracks entities and their components. Systems run each frame, que
 | Debug overlay (FPS, delta time, entity count)                 | Done   |
 | UI rendering pipeline (2D quads, alpha blending)              | Done   |
 | Text rendering (stb_truetype font atlas)                      | Done   |
+| Textures & UV mapping (glTF base color textures)              | Done   |
 
 ## Next Steps
 

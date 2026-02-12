@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Textures & UV Mapping
 
 The engine supports texture mapping for glTF models and procedural primitives. Textures are loaded from glTF files (embedded or external), decoded with stb_image, and sampled in the fragment shader. The final pixel color is `textureColor * vertexColor * lighting`.
@@ -46,13 +42,13 @@ int meshId = NativeBridge.LoadMesh("models/UntexturedBox.glb");
 
 All procedural primitives generate UV coordinates:
 
-| Shape | UV Mapping |
-|---|---|
-| **Box** | Each face maps `(0,0)` to `(1,1)` independently |
-| **Sphere** | Spherical mapping: `u = seg/segments`, `v = ring/rings` |
-| **Plane** | Four corners: `(0,0)`, `(1,0)`, `(1,1)`, `(0,1)` |
+| Shape        | UV Mapping                                                     |
+| ------------ | -------------------------------------------------------------- |
+| **Box**      | Each face maps `(0,0)` to `(1,1)` independently                |
+| **Sphere**   | Spherical mapping: `u = seg/segments`, `v = ring/rings`        |
+| **Plane**    | Four corners: `(0,0)`, `(1,0)`, `(1,1)`, `(0,1)`               |
 | **Cylinder** | Side: cylindrical wrap. Caps: radial projection to unit circle |
-| **Capsule** | Parametric: `u = seg/segments`, `v = row/totalRows` |
+| **Capsule**  | Parametric: `u = seg/segments`, `v = row/totalRows`            |
 
 Procedural primitives always use the default white material (flat vertex color), but the UVs are available for future use with custom materials.
 
@@ -75,6 +71,7 @@ vec3 baseColor = texColor.rgb * fragColor;
 ```
 
 This means:
+
 - Textured models: texture color modulated by `base_color_factor`
 - Untextured models: `white (1,1,1) * vertexColor = vertexColor` (no change)
 

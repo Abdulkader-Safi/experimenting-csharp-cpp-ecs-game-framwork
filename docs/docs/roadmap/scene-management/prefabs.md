@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Prefabs / Templates
 
 :::info Planned

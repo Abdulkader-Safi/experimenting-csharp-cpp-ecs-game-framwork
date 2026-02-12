@@ -1,7 +1,3 @@
----
-sidebar_position: 8
----
-
 # Instanced Rendering
 
 :::info Planned

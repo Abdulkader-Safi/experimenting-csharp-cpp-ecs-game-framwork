@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Animation Playback
 
 :::info Planned

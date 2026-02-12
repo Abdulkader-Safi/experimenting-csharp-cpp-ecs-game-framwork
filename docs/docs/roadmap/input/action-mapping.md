@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Input Action Mapping
 
 :::info Planned

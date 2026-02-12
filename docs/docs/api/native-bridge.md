@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # NativeBridge Reference
 
 `NativeBridge` (`managed/ecs/NativeBridge.cs`) provides all P/Invoke bindings to the C++ Vulkan renderer.
@@ -124,7 +120,7 @@ NativeBridge.SetAmbient(intensity); // set ambient light level
 
 | Parameter             | Description                             |
 | --------------------- | --------------------------------------- |
-| `index`               | Light slot (0–7)                        |
+| `index`               | Light slot (0-7)                        |
 | `type`                | 0 = directional, 1 = point, 2 = spot    |
 | `pos`                 | World position (point and spot lights)  |
 | `dir`                 | Direction vector (directional and spot) |

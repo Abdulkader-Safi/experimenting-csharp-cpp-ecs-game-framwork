@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Primitive Shapes
 
 The engine can generate procedural meshes for common 3D shapes without requiring external model files. Each primitive is centered at the origin with exact user-specified dimensions. Position, rotation, and scale are handled by the `Transform` component.
@@ -19,7 +15,7 @@ int meshId = NativeBridge.CreateBoxMesh(2f, 1f, 3f, 0.8f, 0.2f, 0.2f);
 | Parameter | Description |
 |---|---|
 | `w, h, l` | Width (X), height (Y), length (Z) |
-| `r, g, b` | Vertex color (0–1) |
+| `r, g, b` | Vertex color (0-1) |
 
 ### Sphere
 

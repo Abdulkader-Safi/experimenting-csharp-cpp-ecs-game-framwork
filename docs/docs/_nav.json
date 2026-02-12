@@ -1,0 +1,12 @@
+[
+  {
+    "text": "Guide",
+    "link": "/intro",
+    "activeMatch": "/(intro|getting-started|ecs|features|api|project-structure)/"
+  },
+  {
+    "text": "Roadmap",
+    "link": "/roadmap/rendering/textures",
+    "activeMatch": "/roadmap/"
+  }
+]

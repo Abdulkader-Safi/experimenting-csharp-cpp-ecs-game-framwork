@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Quick Start: Build Your First Scene
 
 This tutorial walks you through creating a scene with a 3D model, camera controls, and a light — all in under 50 lines of C#.
@@ -150,13 +146,13 @@ class MyApp
 
 ## Controls
 
-| Key | Action |
-|---|---|
-| WASD / Arrow Keys | Rotate the model |
-| Q / E | Orbit camera left / right |
-| R / F | Orbit camera up / down |
-| Mouse (when locked) | Free-look camera |
-| ESC | Toggle cursor lock |
+| Key                 | Action                    |
+| ------------------- | ------------------------- |
+| WASD / Arrow Keys   | Rotate the model          |
+| Q / E               | Orbit camera left / right |
+| R / F               | Orbit camera up / down    |
+| Mouse (when locked) | Free-look camera          |
+| ESC                 | Toggle cursor lock        |
 
 ## Next Steps
 

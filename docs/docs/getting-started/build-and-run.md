@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Build & Run
 
 ## Quick Build
@@ -14,12 +10,12 @@ This compiles shaders, builds the C++ shared library, compiles all C# files, and
 
 ## Build Targets
 
-| Command | Description |
-|---|---|
-| `make all` / `make run` | Build and run the hello demo |
+| Command                           | Description                          |
+| --------------------------------- | ------------------------------------ |
+| `make all` / `make run`           | Build and run the hello demo         |
 | `make viewer` / `make run-viewer` | Build and run the Vulkan glTF viewer |
-| `make app` | Build a macOS `.app` bundle |
-| `make clean` | Remove all build artifacts |
+| `make app`                        | Build a macOS `.app` bundle          |
+| `make clean`                      | Remove all build artifacts           |
 
 ## macOS App Bundle
 

@@ -1,0 +1,10 @@
+[
+  "textures",
+  "pbr-materials",
+  "shadows",
+  "transparency",
+  "skybox",
+  "msaa",
+  "custom-shaders",
+  "instanced-rendering"
+]

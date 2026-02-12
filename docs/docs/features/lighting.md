@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Lighting
 
 The engine supports up to 8 dynamic lights using Blinn-Phong shading. Lights are ECS entities with a `Light` component and a `Transform` for position.
@@ -67,21 +63,22 @@ NativeBridge.SetAmbient(0.1f);  // dim ambient
 ## LightSyncSystem
 
 The `LightSyncSystem` runs each frame and pushes all `Light` + `Transform` entities to the renderer. It:
+
 1. Queries all entities with both components
-2. Assigns each light a slot (0–7)
+2. Assigns each light a slot (0-7)
 3. Clears unused slots
 
 Lights beyond slot 7 are ignored. The system automatically manages slot assignment — you don't need to set `LightIndex` manually.
 
 ## Light Properties Reference
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `Type` | `int` | `Directional` (0) | `Light.Directional`, `Light.Point`, or `Light.Spot` |
-| `ColorR/G/B` | `float` | `1, 1, 1` | RGB color |
-| `Intensity` | `float` | `1` | Brightness multiplier |
-| `DirX/Y/Z` | `float` | `0, -1, 0` | Direction (directional and spot) |
-| `Radius` | `float` | `10` | Attenuation radius (point and spot) |
-| `InnerConeDeg` | `float` | `12.5` | Inner cone angle in degrees (spot only) |
-| `OuterConeDeg` | `float` | `17.5` | Outer cone angle in degrees (spot only) |
-| `LightIndex` | `int` | `-1` | Auto-assigned slot index |
+| Field          | Type    | Default           | Description                                         |
+| -------------- | ------- | ----------------- | --------------------------------------------------- |
+| `Type`         | `int`   | `Directional` (0) | `Light.Directional`, `Light.Point`, or `Light.Spot` |
+| `ColorR/G/B`   | `float` | `1, 1, 1`         | RGB color                                           |
+| `Intensity`    | `float` | `1`               | Brightness multiplier                               |
+| `DirX/Y/Z`     | `float` | `0, -1, 0`        | Direction (directional and spot)                    |
+| `Radius`       | `float` | `10`              | Attenuation radius (point and spot)                 |
+| `InnerConeDeg` | `float` | `12.5`            | Inner cone angle in degrees (spot only)             |
+| `OuterConeDeg` | `float` | `17.5`            | Outer cone angle in degrees (spot only)             |
+| `LightIndex`   | `int`   | `-1`              | Auto-assigned slot index                            |

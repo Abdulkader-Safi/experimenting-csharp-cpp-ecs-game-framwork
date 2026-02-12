@@ -1,7 +1,3 @@
----
-sidebar_position: 4
----
-
 # Systems
 
 A system is a static method with the signature `void SystemName(World world)`. It queries for entities with specific components and acts on them.

@@ -1,7 +1,3 @@
----
-sidebar_position: 4
----
-
 # Level Loading
 
 :::info Planned

@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Rendering
 
 The engine uses Vulkan (via MoltenVK on macOS) for 3D rendering with support for glTF mesh loading and multi-entity draw calls.

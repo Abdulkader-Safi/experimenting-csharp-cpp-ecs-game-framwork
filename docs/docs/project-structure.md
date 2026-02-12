@@ -1,7 +1,3 @@
----
-sidebar_position: 6
----
-
 # Project Structure
 
 ## File Layout
@@ -29,6 +25,7 @@ native/
   vendor/
     cgltf.h              # glTF 2.0 parsing library
     stb_truetype.h       # Font rasterization library
+    stb_image.h          # Image decoding library (PNG, JPEG)
 
 assets/
   fonts/

@@ -1,7 +1,3 @@
----
-sidebar_position: 3
----
-
 # Camera
 
 The engine provides a camera system with two modes: **third-person orbit** (default) and **first-person**. Toggle between them with TAB.

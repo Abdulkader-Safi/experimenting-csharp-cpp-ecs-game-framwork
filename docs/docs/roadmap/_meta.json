@@ -1,0 +1,19 @@
+[
+  { "type": "dir", "name": "rendering", "label": "Rendering" },
+  { "type": "dir", "name": "animation", "label": "Animation" },
+  { "type": "dir", "name": "physics", "label": "Physics & Collision" },
+  { "type": "dir", "name": "scene-management", "label": "Scene Management" },
+  { "type": "dir", "name": "audio", "label": "Audio" },
+  { "type": "dir", "name": "input", "label": "Input System" },
+  { "type": "dir", "name": "ui", "label": "UI / HUD" },
+  { "type": "dir", "name": "camera", "label": "Camera System" },
+  { "type": "dir", "name": "ai", "label": "AI / Gameplay" },
+  { "type": "dir", "name": "assets", "label": "Asset Management" },
+  { "type": "dir", "name": "time", "label": "Time & Timing" },
+  {
+    "type": "dir",
+    "name": "entity-lifecycle",
+    "label": "Entity Lifecycle & Events"
+  },
+  { "type": "dir", "name": "cross-platform", "label": "Cross-Platform" }
+]

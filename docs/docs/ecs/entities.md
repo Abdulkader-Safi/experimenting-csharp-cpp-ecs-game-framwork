@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Entities
 
 An entity is just an integer ID. It has no data of its own — all state is stored in [components](./components.md).

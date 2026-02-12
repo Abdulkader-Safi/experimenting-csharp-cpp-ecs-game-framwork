@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Spatial Audio
 
 :::info Planned

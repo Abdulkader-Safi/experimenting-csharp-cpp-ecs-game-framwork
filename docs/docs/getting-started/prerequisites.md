@@ -1,7 +1,3 @@
----
-sidebar_position: 1
----
-
 # Prerequisites
 
 ## Required Tools
@@ -42,9 +38,9 @@ Windows and Linux builds are not yet supported. See the [cross-platform roadmap]
 
 ## Key Paths (macOS / Homebrew)
 
-| Dependency | Headers | Libraries |
-|---|---|---|
-| Vulkan | `/opt/homebrew/include/vulkan/` | `/opt/homebrew/lib/` |
-| GLFW | `/opt/homebrew/include/GLFW/` | `/opt/homebrew/lib/` |
-| GLM | `/opt/homebrew/include/glm/` | (header-only) |
-| MoltenVK ICD | `/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json` | — |
+| Dependency   | Headers                                            | Libraries            |
+| ------------ | -------------------------------------------------- | -------------------- |
+| Vulkan       | `/opt/homebrew/include/vulkan/`                    | `/opt/homebrew/lib/` |
+| GLFW         | `/opt/homebrew/include/GLFW/`                      | `/opt/homebrew/lib/` |
+| GLM          | `/opt/homebrew/include/glm/`                       | (header-only)        |
+| MoltenVK ICD | `/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json` | —                    |

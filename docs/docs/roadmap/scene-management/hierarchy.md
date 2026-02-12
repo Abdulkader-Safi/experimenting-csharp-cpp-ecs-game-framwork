@@ -1,7 +1,3 @@
----
-sidebar_position: 2
----
-
 # Parent-Child Hierarchy
 
 :::tip Implemented

@@ -1,7 +1,3 @@
----
-sidebar_position: 4
----
-
 # Input
 
 The engine provides keyboard and mouse input through GLFW, exposed to C# via `NativeBridge`.
