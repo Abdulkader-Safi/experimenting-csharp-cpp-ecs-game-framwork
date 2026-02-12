@@ -24,6 +24,7 @@
 | UI rendering pipeline (2D quads, alpha blending, no depth)    | Done   |
 | Text rendering (stb_truetype font atlas, R8 texture)          | Done   |
 | Debug overlay (FPS, delta time, entity count, F3 toggle)      | Done   |
+| Textures & UV mapping (glTF base color texture, stb_image)    | Done   |
 
 --https://bevy.org/-
 
@@ -31,7 +32,7 @@
 
 ### 1. Rendering
 
-- [ ] **Textures & UV mapping** — Load textures from glTF, sample in fragment shader, add UV coords to vertex format
+- [x] **Textures & UV mapping** — Load textures from glTF, sample in fragment shader, add UV coords to vertex format
 - [ ] **PBR materials** — Metallic/roughness workflow (base color, metallic, roughness, emissive maps)
 - [x] **Procedural primitives** — Box, sphere, plane, cylinder, capsule generated without external files
 - [x] **Multiple lights** — Point, directional, spot lights as ECS entities with position/color/intensity
@@ -137,7 +138,7 @@
 
 **Phase 2 — Make it look good:**
 
-7. Textures & UV mapping
+7. ~~Textures & UV mapping~~ ✓
 8. PBR materials
 9. Multiple lights
 10. Shadows

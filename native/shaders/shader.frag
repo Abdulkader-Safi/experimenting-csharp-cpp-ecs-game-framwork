@@ -16,7 +16,7 @@ struct Light {
     int   type;       // 0=dir, 1=point, 2=spot
 };
 
-layout(binding = 1) uniform LightData {
+layout(set = 0, binding = 1) uniform LightData {
     vec4  cameraPos;       // xyz = eye position
     int   numLights;
     float ambientIntensity;
@@ -24,9 +24,12 @@ layout(binding = 1) uniform LightData {
     Light lights[MAX_LIGHTS];
 } ld;
 
+layout(set = 1, binding = 0) uniform sampler2D baseColorTex;
+
 layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec3 fragColor;
 layout(location = 2) in vec3 fragWorldPos;
+layout(location = 3) in vec2 fragUV;
 
 layout(location = 0) out vec4 outColor;
 
@@ -69,7 +72,8 @@ vec3 calcLight(Light light, vec3 normal, vec3 fragPos, vec3 viewDir) {
 
 void main() {
     vec3 normal = normalize(fragNormal);
-    vec3 baseColor = fragColor;
+    vec4 texColor = texture(baseColorTex, fragUV);
+    vec3 baseColor = texColor.rgb * fragColor;
 
     if (ld.numLights == 0) {
         // Fallback: original hardcoded lighting
