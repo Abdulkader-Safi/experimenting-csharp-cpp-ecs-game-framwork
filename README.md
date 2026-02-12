@@ -144,18 +144,22 @@ Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 │   └── fonts/
 │       └── RobotoMono-Regular.ttf   # Monospace font for debug overlay
 ├── models/                          # glTF models (.glb)
-├── docs/                            # Docusaurus documentation site
+├── docs/                            # Rspress user-facing documentation site
+├── technical_docs/                  # Rspress technical/renderer internals docs
 ├── plans/                           # Roadmap and planning docs
 └── build/                           # Generated build artifacts
 ```
 
 ## Documentation
 
-The project includes a [Docusaurus](https://docusaurus.io/) documentation site covering architecture, ECS usage, API reference, and the feature roadmap.
+The project includes two [Rspress](https://rspress.dev/) documentation sites:
+
+- **`docs/`** — User-facing docs covering architecture, ECS usage, and the feature roadmap
+- **`technical_docs/`** — Renderer internals: Vulkan pipeline setup, shaders, data structures, bridge API
 
 ```sh
-cd docs && bun install && bun run start   # Dev server at localhost:3000
-cd docs && bun run build                  # Production build
+cd docs && bun install && bun run dev              # User docs dev server
+cd technical_docs && bun install && bun run dev    # Technical docs dev server
 ```
 
 ## Roadmap

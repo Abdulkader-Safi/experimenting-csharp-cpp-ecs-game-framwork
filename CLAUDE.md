@@ -21,14 +21,21 @@ The viewer build does three things in sequence:
 
 `make run` sets `DYLD_LIBRARY_PATH` and `VK_ICD_FILENAMES` (MoltenVK) automatically. There is no test suite — verification is done by running the viewer (`make run`).
 
-## Documentation Site
+## Documentation Sites
+
+Two Rspress doc sites live in the repo:
 
 ```bash
-cd docs && bun install && bun run start   # Dev server at localhost:3000
-cd docs && bun run build                  # Production build (validates broken links)
+# User-facing docs
+cd docs && bun install && bun run dev        # Dev server
+cd docs && bun run build                     # Production build
+
+# Technical / renderer internals docs
+cd technical_docs && bun install && bun run dev
+cd technical_docs && bun run build
 ```
 
-Uses Docusaurus 3.9.2 with `docusaurus-plugin-auto-sidebars` and `docusaurus-lunr-search`.
+Both use Rspress 2.x (`@rspress/core`). The `docs/` site covers ECS usage and features. The `technical_docs/` site covers Vulkan renderer internals (pipeline setup, shaders, data structures, bridge API).
 
 ## Architecture
 
