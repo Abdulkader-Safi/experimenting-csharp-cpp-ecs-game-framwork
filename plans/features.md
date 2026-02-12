@@ -19,8 +19,11 @@
 | Parent-child entity hierarchy                                 | Done   |
 | First-person / third-person camera                            | Done   |
 | Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
-| Free camera (debug fly camera, press 0/1 to toggle)          | Done   |
+| Free camera (debug fly camera, press 0/1 to toggle)           | Done   |
 | GameConstants (tunable config values)                         | Done   |
+| UI rendering pipeline (2D quads, alpha blending, no depth)    | Done   |
+| Text rendering (stb_truetype font atlas, R8 texture)          | Done   |
+| Debug overlay (FPS, delta time, entity count, F3 toggle)      | Done   |
 
 --https://bevy.org/-
 
@@ -76,10 +79,10 @@
 
 ### 7. UI / HUD
 
-- [ ] **Text rendering** — Draw text on screen (health, score, debug info)
+- [x] **Text rendering** — Font atlas via stb_truetype, screen-space text with configurable color
 - [ ] **HUD elements** — Health bars, icons, crosshair overlaid on 3D scene
 - [ ] **Menu system** — Start screen, pause menu, settings with navigation
-- [ ] **Debug overlay** — FPS counter, entity count, wireframe toggle
+- [x] **Debug overlay** — FPS counter, delta time, entity count (F3 toggle)
 
 ### 8. Camera System
 

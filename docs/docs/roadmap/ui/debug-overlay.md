@@ -4,15 +4,25 @@ sidebar_position: 4
 
 # Debug Overlay
 
-:::info Planned
-This feature is not yet implemented.
+:::tip Implemented
+This feature has been implemented. See the [Debug Overlay feature page](../../features/debug-overlay.md) for full documentation.
 :::
 
-FPS counter, entity count, and wireframe toggle for development.
+FPS counter, delta time, and entity count rendered as GPU text on a semi-transparent panel.
 
-## Planned Scope
+## What's Done
 
-- FPS counter using delta time
-- Entity and component count display
+- FPS counter with exponential moving average smoothing
+- Delta time display in milliseconds
+- Active entity count
+- F3 key toggle (edge-detected)
+- Second Vulkan pipeline (no depth test, alpha blending)
+- Font atlas via stb_truetype (512x512 R8_UNORM)
+- Graceful fallback when font file is missing
+
+## Remaining (Future)
+
 - Wireframe rendering toggle
 - Light visualization (show positions and directions)
+- Component count display
+- Custom overlay panels

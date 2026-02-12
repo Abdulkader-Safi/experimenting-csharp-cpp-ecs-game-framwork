@@ -378,6 +378,20 @@ namespace ECS
             return localMatrix;
         }
 
+        private static bool wasF3Pressed_ = false;
+
+        public static void DebugOverlaySystem(World world)
+        {
+            bool f3 = NativeBridge.IsKeyPressed(GameConstants.GLFW_KEY_F3);
+            if (f3 && !wasF3Pressed_)
+            {
+                GameConstants.Debug = !GameConstants.Debug;
+            }
+            wasF3Pressed_ = f3;
+
+            NativeBridge.SetDebugOverlay(GameConstants.Debug);
+        }
+
         public static void RenderSyncSystem(World world)
         {
             List<int> entities = world.Query(typeof(Transform), typeof(MeshComponent));

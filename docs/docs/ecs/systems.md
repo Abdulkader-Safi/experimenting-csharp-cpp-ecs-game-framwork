@@ -76,6 +76,12 @@ Queries: `Light` + `Transform`
 
 Pushes light data to the C++ renderer each frame. Supports up to 8 active lights. Automatically assigns light slots and clears unused ones.
 
+### DebugOverlaySystem
+
+No query — reads key state and calls `NativeBridge.SetDebugOverlay()`.
+
+Toggles the debug overlay on/off when the **F3** key is pressed (edge-detected). Each press flips `GameConstants.Debug` and syncs the state to the C++ renderer. See [Debug Overlay](../features/debug-overlay.md) for details on what the overlay displays.
+
 ### RenderSyncSystem
 
 Queries: `Transform` + `MeshComponent`
@@ -91,8 +97,9 @@ world.AddSystem(Systems.InputMovementSystem);        // runs first
 world.AddSystem(Systems.TimerSystem);                 // tick timers
 world.AddSystem(Systems.FreeCameraSystem);            // debug fly camera (before CameraFollow)
 world.AddSystem(Systems.CameraFollowSystem);          // updates camera from input
-world.AddSystem(Systems.HierarchyTransformSystem);    // compute world transforms
 world.AddSystem(Systems.LightSyncSystem);             // syncs lights to GPU
+world.AddSystem(Systems.HierarchyTransformSystem);    // compute world transforms
+world.AddSystem(Systems.DebugOverlaySystem);          // F3 toggle, syncs overlay state
 world.AddSystem(Systems.RenderSyncSystem);            // runs last — syncs transforms
 ```
 
@@ -135,8 +142,9 @@ world.AddSystem(Systems.InputMovementSystem);
 world.AddSystem(Systems.TimerSystem);
 world.AddSystem(Systems.FreeCameraSystem);
 world.AddSystem(Systems.CameraFollowSystem);
-world.AddSystem(Systems.HierarchyTransformSystem);
 world.AddSystem(Systems.LightSyncSystem);
+world.AddSystem(Systems.HierarchyTransformSystem);
+world.AddSystem(Systems.DebugOverlaySystem);
 world.AddSystem(Systems.RenderSyncSystem);  // always last
 ```
 

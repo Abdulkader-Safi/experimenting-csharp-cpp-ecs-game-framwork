@@ -12,7 +12,7 @@ managed/
   ecs/
     World.cs             # ECS world: entities, components, systems, queries
     Components.cs        # Built-in: Transform, MeshComponent, Movable, Camera, Light
-    Systems.cs           # Built-in: InputMovement, FreeCamera, CameraFollow, LightSync, RenderSync
+    Systems.cs           # Built-in: InputMovement, FreeCamera, CameraFollow, LightSync, DebugOverlay, RenderSync
     NativeBridge.cs      # All P/Invoke declarations + convenience wrappers
     FreeCameraState.cs   # Static state for the debug free camera
     GameConstants.cs     # Tunable config values (debug, sensitivity, speed)
@@ -24,6 +24,15 @@ native/
   shaders/
     shader.vert          # Vertex shader (UBO for view/proj, push constant for model)
     shader.frag          # Fragment shader (Blinn-Phong, up to 8 lights)
+    ui.vert              # UI vertex shader (pixel-to-NDC via push constant)
+    ui.frag              # UI fragment shader (R8 font atlas sampling + alpha)
+  vendor/
+    cgltf.h              # glTF 2.0 parsing library
+    stb_truetype.h       # Font rasterization library
+
+assets/
+  fonts/
+    RobotoMono-Regular.ttf  # Monospace font for debug overlay
 
 models/                  # glTF model files (.glb)
 ```

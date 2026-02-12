@@ -70,6 +70,50 @@ struct Vertex {
     }
 };
 
+struct UIVertex {
+    glm::vec2 pos;
+    glm::vec2 uv;
+    glm::vec4 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription desc{};
+        desc.binding = 0;
+        desc.stride = sizeof(UIVertex);
+        desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        return desc;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 3> attrs{};
+        attrs[0].binding = 0;
+        attrs[0].location = 0;
+        attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attrs[0].offset = offsetof(UIVertex, pos);
+
+        attrs[1].binding = 0;
+        attrs[1].location = 1;
+        attrs[1].format = VK_FORMAT_R32G32_SFLOAT;
+        attrs[1].offset = offsetof(UIVertex, uv);
+
+        attrs[2].binding = 0;
+        attrs[2].location = 2;
+        attrs[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attrs[2].offset = offsetof(UIVertex, color);
+
+        return attrs;
+    }
+};
+
+struct GlyphInfo {
+    float x0, y0, x1, y1; // UV coordinates in atlas
+    float xoff, yoff, xadvance;
+    float width, height;  // pixel dimensions
+};
+
+struct UIPushConstants {
+    glm::vec2 screenSize;
+};
+
 struct UniformBufferObject {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
@@ -154,6 +198,10 @@ public:
     void updateTime();
     float getDeltaTime() const;
     float getTotalTime() const;
+
+    // Debug overlay
+    void setDebugOverlay(bool enabled);
+    int getActiveEntityCount() const;
 
 private:
     // Window
@@ -299,6 +347,57 @@ private:
     VkFormat findDepthFormat() const;
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void updateUniformBuffer(uint32_t currentImage);
+
+    // UI pipeline
+    VkPipeline uiPipeline_ = VK_NULL_HANDLE;
+    VkPipelineLayout uiPipelineLayout_ = VK_NULL_HANDLE;
+    VkDescriptorSetLayout uiDescriptorSetLayout_ = VK_NULL_HANDLE;
+    VkDescriptorPool uiDescriptorPool_ = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> uiDescriptorSets_;
+
+    // Font atlas
+    VkImage fontImage_ = VK_NULL_HANDLE;
+    VkDeviceMemory fontImageMemory_ = VK_NULL_HANDLE;
+    VkImageView fontImageView_ = VK_NULL_HANDLE;
+    VkSampler fontSampler_ = VK_NULL_HANDLE;
+    bool fontLoaded_ = false;
+
+    // UI vertex buffers (per frame, host-visible, persistently mapped)
+    static const int UI_MAX_VERTICES = 4096;
+    std::vector<VkBuffer> uiVertexBuffers_;
+    std::vector<VkDeviceMemory> uiVertexBuffersMemory_;
+    std::vector<void*> uiVertexBuffersMapped_;
+    uint32_t uiVertexCount_ = 0;
+    std::vector<UIVertex> uiVertices_;
+
+    // Debug overlay state
+    bool debugOverlayEnabled_ = false;
+    float smoothedFps_ = 60.0f;
+
+    // Glyph data
+    static const int FONT_ATLAS_SIZE = 512;
+    static const int GLYPH_FIRST = 32;
+    static const int GLYPH_COUNT = 95; // ASCII 32-126
+    GlyphInfo glyphs_[95];
+    float fontPixelHeight_ = 20.0f;
+
+    // UI init helpers
+    void createUIPipeline();
+    void createUIDescriptorSetLayout();
+    void createUIDescriptorPool();
+    void createUIDescriptorSets();
+    void createUIVertexBuffers();
+    void createFontResources();
+    void cleanupUIResources();
+
+    // UI rendering
+    void recordUICommands(VkCommandBuffer commandBuffer);
+    void buildDebugOverlayGeometry();
+    void appendText(const char* text, float x, float y, glm::vec4 color);
+    void appendQuad(float x, float y, float w, float h, glm::vec4 color);
+
+    // Image layout transition helper
+    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     static void framebufferResizeCallback(GLFWwindow* window, int w, int h);
     static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);

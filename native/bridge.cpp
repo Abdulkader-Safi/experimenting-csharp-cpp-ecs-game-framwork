@@ -206,4 +206,14 @@ void renderer_set_ambient(float intensity) {
     g_renderer.setAmbientIntensity(intensity);
 }
 
+// --- Debug Overlay API ---
+
+void renderer_set_debug_overlay(int enabled) {
+    g_renderer.setDebugOverlay(enabled != 0);
+}
+
+int renderer_get_entity_count() {
+    return g_renderer.getActiveEntityCount();
+}
+
 } // extern "C"

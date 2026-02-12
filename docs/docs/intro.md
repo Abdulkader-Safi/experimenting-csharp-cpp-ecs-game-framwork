@@ -46,6 +46,9 @@ The C# `World` tracks entities and their components. Systems run each frame, que
 | First-person / third-person camera                            | Done   |
 | Procedural primitives (box, sphere, plane, cylinder, capsule) | Done   |
 | Free camera (debug fly camera)                                | Done   |
+| Debug overlay (FPS, delta time, entity count)                 | Done   |
+| UI rendering pipeline (2D quads, alpha blending)              | Done   |
+| Text rendering (stb_truetype font atlas)                      | Done   |
 
 ## Next Steps
 

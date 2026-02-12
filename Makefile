@@ -16,6 +16,8 @@ VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs man
 SHADER_DIR = $(BUILD_DIR)/shaders
 VERT_SPV = $(SHADER_DIR)/vert.spv
 FRAG_SPV = $(SHADER_DIR)/frag.spv
+UI_VERT_SPV = $(SHADER_DIR)/ui_vert.spv
+UI_FRAG_SPV = $(SHADER_DIR)/ui_frag.spv
 VK_ICD = /opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json
 
 # --- Hello demo (existing) ---
@@ -33,7 +35,7 @@ $(BUILD_DIR):
 
 # --- Viewer ---
 
-shaders: $(VERT_SPV) $(FRAG_SPV)
+shaders: $(VERT_SPV) $(FRAG_SPV) $(UI_VERT_SPV) $(UI_FRAG_SPV)
 
 $(SHADER_DIR):
 	mkdir -p $(SHADER_DIR)
@@ -42,6 +44,12 @@ $(VERT_SPV): native/shaders/shader.vert | $(SHADER_DIR)
 	glslc $< -o $@
 
 $(FRAG_SPV): native/shaders/shader.frag | $(SHADER_DIR)
+	glslc $< -o $@
+
+$(UI_VERT_SPV): native/shaders/ui.vert | $(SHADER_DIR)
+	glslc $< -o $@
+
+$(UI_FRAG_SPV): native/shaders/ui.frag | $(SHADER_DIR)
 	glslc $< -o $@
 
 $(VIEWER_DYLIB): native/renderer.cpp native/bridge.cpp native/renderer.h native/CMakeLists.txt

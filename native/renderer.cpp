@@ -1,5 +1,9 @@
 #define CGLTF_IMPLEMENTATION
 #include "vendor/cgltf.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "vendor/stb_truetype.h"
+
 #include "renderer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -86,6 +90,14 @@ bool VulkanRenderer::init(int width, int height, const char* title) {
         createDescriptorSets();
         createCommandBuffers();
         createSyncObjects();
+
+        // UI overlay pipeline
+        createUIDescriptorSetLayout();
+        createUIPipeline();
+        createUIVertexBuffers();
+        createFontResources();
+        createUIDescriptorPool();
+        createUIDescriptorSets();
     } catch (const std::exception& e) {
         std::cerr << "Vulkan init failed: " << e.what() << std::endl;
         return false;
@@ -96,6 +108,7 @@ bool VulkanRenderer::init(int width, int height, const char* title) {
 void VulkanRenderer::cleanup() {
     if (device_) vkDeviceWaitIdle(device_);
 
+    cleanupUIResources();
     cleanupSwapchain();
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -650,6 +663,10 @@ void VulkanRenderer::renderFrame() {
     vkResetFences(device_, 1, &inFlightFences_[currentFrame_]);
 
     updateUniformBuffer(currentFrame_);
+
+    if (debugOverlayEnabled_) {
+        buildDebugOverlayGeometry();
+    }
 
     vkResetCommandBuffer(commandBuffers_[currentFrame_], 0);
     recordCommandBuffer(commandBuffers_[currentFrame_], imageIndex);
@@ -1618,6 +1635,11 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
                          mesh.indexOffset, mesh.vertexOffset, 0);
     }
 
+    // UI overlay (rendered on top of 3D scene, within same render pass)
+    if (debugOverlayEnabled_ && uiVertexCount_ > 0) {
+        recordUICommands(commandBuffer);
+    }
+
     vkCmdEndRenderPass(commandBuffer);
 
     checkVk(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
@@ -1738,4 +1760,654 @@ void VulkanRenderer::clearLight(int index) {
 
 void VulkanRenderer::setAmbientIntensity(float intensity) {
     lightData_.ambientIntensity = intensity;
+}
+
+// ---------------------------------------------------------------------------
+// Debug overlay public API
+// ---------------------------------------------------------------------------
+
+void VulkanRenderer::setDebugOverlay(bool enabled) {
+    debugOverlayEnabled_ = enabled;
+}
+
+int VulkanRenderer::getActiveEntityCount() const {
+    int count = 0;
+    for (const auto& ent : entities_) {
+        if (ent.active) count++;
+    }
+    return count;
+}
+
+// ---------------------------------------------------------------------------
+// UI Pipeline
+// ---------------------------------------------------------------------------
+
+void VulkanRenderer::createUIDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding samplerBinding{};
+    samplerBinding.binding = 0;
+    samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerBinding.descriptorCount = 1;
+    samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &samplerBinding;
+
+    checkVk(vkCreateDescriptorSetLayout(device_, &layoutInfo, nullptr, &uiDescriptorSetLayout_),
+            "Failed to create UI descriptor set layout");
+}
+
+void VulkanRenderer::createUIPipeline() {
+    auto vertCode = readFile("build/shaders/ui_vert.spv");
+    auto fragCode = readFile("build/shaders/ui_frag.spv");
+
+    VkShaderModule vertModule = createShaderModule(vertCode);
+    VkShaderModule fragModule = createShaderModule(fragCode);
+
+    VkPipelineShaderStageCreateInfo vertStage{};
+    vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertStage.module = vertModule;
+    vertStage.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragStage{};
+    fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragStage.module = fragModule;
+    fragStage.pName = "main";
+
+    VkPipelineShaderStageCreateInfo stages[] = { vertStage, fragStage };
+
+    auto bindingDesc = UIVertex::getBindingDescription();
+    auto attrDescs = UIVertex::getAttributeDescriptions();
+
+    VkPipelineVertexInputStateCreateInfo vertexInput{};
+    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInput.vertexBindingDescriptionCount = 1;
+    vertexInput.pVertexBindingDescriptions = &bindingDesc;
+    vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDescs.size());
+    vertexInput.pVertexAttributeDescriptions = attrDescs.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    // No depth testing for UI
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_FALSE;
+    depthStencil.depthWriteEnable = VK_FALSE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
+    // Alpha blending
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    // Push constant: vec2 screenSize (8 bytes)
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(UIPushConstants);
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &uiDescriptorSetLayout_;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
+    checkVk(vkCreatePipelineLayout(device_, &pipelineLayoutInfo, nullptr, &uiPipelineLayout_),
+            "Failed to create UI pipeline layout");
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = stages;
+    pipelineInfo.pVertexInputState = &vertexInput;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = uiPipelineLayout_;
+    pipelineInfo.renderPass = renderPass_;
+    pipelineInfo.subpass = 0;
+
+    checkVk(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &uiPipeline_),
+            "Failed to create UI graphics pipeline");
+
+    vkDestroyShaderModule(device_, fragModule, nullptr);
+    vkDestroyShaderModule(device_, vertModule, nullptr);
+}
+
+void VulkanRenderer::createUIVertexBuffers() {
+    VkDeviceSize bufferSize = sizeof(UIVertex) * UI_MAX_VERTICES;
+
+    uiVertexBuffers_.resize(MAX_FRAMES_IN_FLIGHT);
+    uiVertexBuffersMemory_.resize(MAX_FRAMES_IN_FLIGHT);
+    uiVertexBuffersMapped_.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uiVertexBuffers_[i], uiVertexBuffersMemory_[i]);
+        vkMapMemory(device_, uiVertexBuffersMemory_[i], 0, bufferSize, 0,
+                     &uiVertexBuffersMapped_[i]);
+    }
+}
+
+void VulkanRenderer::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool_;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer cmd;
+    vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cmd, &beginInfo);
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags srcStage, dstStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = 0;
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    }
+
+    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    vkEndCommandBuffer(cmd);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue_);
+
+    vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
+}
+
+void VulkanRenderer::createFontResources() {
+    // Create sampler (used for both placeholder and font atlas)
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    checkVk(vkCreateSampler(device_, &samplerInfo, nullptr, &fontSampler_),
+            "Failed to create font sampler");
+
+    // Try to load the font
+    std::vector<unsigned char> bitmap(FONT_ATLAS_SIZE * FONT_ATLAS_SIZE, 0);
+    int atlasW = FONT_ATLAS_SIZE, atlasH = FONT_ATLAS_SIZE;
+
+    std::ifstream fontFile("assets/fonts/RobotoMono-Regular.ttf", std::ios::ate | std::ios::binary);
+    if (fontFile.is_open()) {
+        size_t fileSize = static_cast<size_t>(fontFile.tellg());
+        fontFile.seekg(0);
+        std::vector<unsigned char> fontData(fileSize);
+        fontFile.read(reinterpret_cast<char*>(fontData.data()), static_cast<std::streamsize>(fileSize));
+        fontFile.close();
+
+        stbtt_bakedchar bakedChars[GLYPH_COUNT];
+        int result = stbtt_BakeFontBitmap(fontData.data(), 0, fontPixelHeight_,
+                                           bitmap.data(), atlasW, atlasH,
+                                           GLYPH_FIRST, GLYPH_COUNT, bakedChars);
+
+        if (result > 0) {
+            fontLoaded_ = true;
+            float invW = 1.0f / static_cast<float>(atlasW);
+            float invH = 1.0f / static_cast<float>(atlasH);
+
+            for (int i = 0; i < GLYPH_COUNT; i++) {
+                const stbtt_bakedchar& bc = bakedChars[i];
+                glyphs_[i].x0 = bc.x0 * invW;
+                glyphs_[i].y0 = bc.y0 * invH;
+                glyphs_[i].x1 = bc.x1 * invW;
+                glyphs_[i].y1 = bc.y1 * invH;
+                glyphs_[i].xoff = bc.xoff;
+                glyphs_[i].yoff = bc.yoff;
+                glyphs_[i].xadvance = bc.xadvance;
+                glyphs_[i].width = static_cast<float>(bc.x1 - bc.x0);
+                glyphs_[i].height = static_cast<float>(bc.y1 - bc.y0);
+            }
+            std::cout << "Font atlas loaded: " << atlasW << "x" << atlasH << std::endl;
+        } else {
+            std::cerr << "Warning: Font baking failed, using placeholder" << std::endl;
+            fontLoaded_ = false;
+        }
+    } else {
+        std::cerr << "Warning: Font file not found, using placeholder" << std::endl;
+        fontLoaded_ = false;
+    }
+
+    if (!fontLoaded_) {
+        // 1x1 white placeholder
+        atlasW = 1;
+        atlasH = 1;
+        bitmap.resize(1);
+        bitmap[0] = 255;
+    }
+
+    // Create Vulkan image
+    createImage(static_cast<uint32_t>(atlasW), static_cast<uint32_t>(atlasH),
+                VK_FORMAT_R8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                fontImage_, fontImageMemory_);
+
+    // Upload via staging buffer
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(atlasW) * atlasH;
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingMemory);
+
+    void* data;
+    vkMapMemory(device_, stagingMemory, 0, imageSize, 0, &data);
+    memcpy(data, bitmap.data(), static_cast<size_t>(imageSize));
+    vkUnmapMemory(device_, stagingMemory);
+
+    transitionImageLayout(fontImage_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    // Copy buffer to image
+    {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool_;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer cmd;
+        vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(cmd, &beginInfo);
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {static_cast<uint32_t>(atlasW), static_cast<uint32_t>(atlasH), 1};
+
+        vkCmdCopyBufferToImage(cmd, stagingBuffer, fontImage_,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        vkEndCommandBuffer(cmd);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd;
+        vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphicsQueue_);
+
+        vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
+    }
+
+    transitionImageLayout(fontImage_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(device_, stagingBuffer, nullptr);
+    vkFreeMemory(device_, stagingMemory, nullptr);
+
+    // Create image view
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = fontImage_;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8_UNORM;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    checkVk(vkCreateImageView(device_, &viewInfo, nullptr, &fontImageView_),
+            "Failed to create font image view");
+}
+
+void VulkanRenderer::createUIDescriptorPool() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    checkVk(vkCreateDescriptorPool(device_, &poolInfo, nullptr, &uiDescriptorPool_),
+            "Failed to create UI descriptor pool");
+}
+
+void VulkanRenderer::createUIDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, uiDescriptorSetLayout_);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = uiDescriptorPool_;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    uiDescriptorSets_.resize(MAX_FRAMES_IN_FLIGHT);
+    checkVk(vkAllocateDescriptorSets(device_, &allocInfo, uiDescriptorSets_.data()),
+            "Failed to allocate UI descriptor sets");
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = fontImageView_;
+        imageInfo.sampler = fontSampler_;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = uiDescriptorSets_[i];
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.descriptorCount = 1;
+        write.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(device_, 1, &write, 0, nullptr);
+    }
+}
+
+void VulkanRenderer::cleanupUIResources() {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (uiVertexBuffers_.size() > static_cast<size_t>(i)) {
+            vkDestroyBuffer(device_, uiVertexBuffers_[i], nullptr);
+            vkFreeMemory(device_, uiVertexBuffersMemory_[i], nullptr);
+        }
+    }
+    uiVertexBuffers_.clear();
+    uiVertexBuffersMemory_.clear();
+    uiVertexBuffersMapped_.clear();
+
+    if (fontSampler_) vkDestroySampler(device_, fontSampler_, nullptr);
+    fontSampler_ = VK_NULL_HANDLE;
+    if (fontImageView_) vkDestroyImageView(device_, fontImageView_, nullptr);
+    fontImageView_ = VK_NULL_HANDLE;
+    if (fontImage_) vkDestroyImage(device_, fontImage_, nullptr);
+    fontImage_ = VK_NULL_HANDLE;
+    if (fontImageMemory_) vkFreeMemory(device_, fontImageMemory_, nullptr);
+    fontImageMemory_ = VK_NULL_HANDLE;
+
+    if (uiDescriptorPool_) vkDestroyDescriptorPool(device_, uiDescriptorPool_, nullptr);
+    uiDescriptorPool_ = VK_NULL_HANDLE;
+    if (uiDescriptorSetLayout_) vkDestroyDescriptorSetLayout(device_, uiDescriptorSetLayout_, nullptr);
+    uiDescriptorSetLayout_ = VK_NULL_HANDLE;
+    if (uiPipeline_) vkDestroyPipeline(device_, uiPipeline_, nullptr);
+    uiPipeline_ = VK_NULL_HANDLE;
+    if (uiPipelineLayout_) vkDestroyPipelineLayout(device_, uiPipelineLayout_, nullptr);
+    uiPipelineLayout_ = VK_NULL_HANDLE;
+}
+
+// ---------------------------------------------------------------------------
+// UI Rendering
+// ---------------------------------------------------------------------------
+
+void VulkanRenderer::appendQuad(float x, float y, float w, float h, glm::vec4 color) {
+    if (uiVertices_.size() + 6 > UI_MAX_VERTICES) return;
+
+    // For solid quads, use UV (0,0) which maps to top-left of atlas.
+    // With font loaded, that pixel is white (255). With placeholder, entire atlas is white.
+    // We use UV=0,0 for all corners — font atlas top-left corner should be a filled pixel.
+    // Actually, for the placeholder (1x1 white), any UV works.
+    // For the font atlas, we need a white region. Use the space glyph area or just (0,0).
+    float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f;
+
+    if (fontLoaded_) {
+        // Use the bottom-right of the font atlas which is likely empty (white=0).
+        // Actually we need alpha=1 for solid quads. The font atlas has alpha=255 where glyphs are.
+        // For solid quads without font, we need the R channel to be 1.0.
+        // Solution: use a small region that we know is filled (the period glyph, or just override).
+        // Simplest: just set all UVs to point to a glyph interior. Or better: set alpha in color
+        // and make the shader multiply. We need R channel = 1.0 for full opacity.
+        // Let's find the '.' glyph or use a specific pixel. Actually, let's just override:
+        // We'll emit vertices with UV pointing to the font atlas pixel that has value 255.
+        // The space glyph area might be 0. Let's use the solid block of the 'M' glyph center.
+        // Better approach: just use a special flag. Simplest: set UV to (-1,-1) and check in shader?
+        // No, let's keep it simple. We placed white=255 in the bitmap where glyphs are drawn.
+        // For a solid quad, let's use UV coordinates that hit inside a fully-filled glyph.
+        // The 'W' or block character would work. Let's just use the center of the 'M' glyph.
+        // Actually, the most robust approach: just find the UV that maps to a white pixel.
+        // In the baked font, the glyph interiors are white. Let's use the center of '#'.
+        const GlyphInfo& g = glyphs_['#' - GLYPH_FIRST];
+        float cu = (g.x0 + g.x1) * 0.5f;
+        float cv = (g.y0 + g.y1) * 0.5f;
+        u0 = u1 = cu;
+        v0 = v1 = cv;
+    }
+
+    UIVertex v;
+    v.color = color;
+
+    // Triangle 1: top-left, top-right, bottom-right
+    v.pos = {x, y};         v.uv = {u0, v0}; uiVertices_.push_back(v);
+    v.pos = {x + w, y};     v.uv = {u1, v0}; uiVertices_.push_back(v);
+    v.pos = {x + w, y + h}; v.uv = {u1, v1}; uiVertices_.push_back(v);
+
+    // Triangle 2: top-left, bottom-right, bottom-left
+    v.pos = {x, y};         v.uv = {u0, v0}; uiVertices_.push_back(v);
+    v.pos = {x + w, y + h}; v.uv = {u1, v1}; uiVertices_.push_back(v);
+    v.pos = {x, y + h};     v.uv = {u0, v1}; uiVertices_.push_back(v);
+}
+
+void VulkanRenderer::appendText(const char* text, float x, float y, glm::vec4 color) {
+    if (!fontLoaded_) return;
+
+    float cursorX = x;
+    float cursorY = y;
+
+    for (const char* p = text; *p; p++) {
+        int ch = static_cast<unsigned char>(*p);
+        if (ch < GLYPH_FIRST || ch >= GLYPH_FIRST + GLYPH_COUNT) {
+            cursorX += fontPixelHeight_ * 0.5f; // skip unknown chars
+            continue;
+        }
+
+        if (uiVertices_.size() + 6 > UI_MAX_VERTICES) return;
+
+        const GlyphInfo& g = glyphs_[ch - GLYPH_FIRST];
+
+        // Quad corners in pixel space
+        float x0 = cursorX + g.xoff;
+        float y0 = cursorY + g.yoff + fontPixelHeight_; // baseline offset
+        float x1 = x0 + g.width;
+        float y1 = y0 + g.height;
+
+        UIVertex v;
+        v.color = color;
+
+        // Triangle 1
+        v.pos = {x0, y0}; v.uv = {g.x0, g.y0}; uiVertices_.push_back(v);
+        v.pos = {x1, y0}; v.uv = {g.x1, g.y0}; uiVertices_.push_back(v);
+        v.pos = {x1, y1}; v.uv = {g.x1, g.y1}; uiVertices_.push_back(v);
+
+        // Triangle 2
+        v.pos = {x0, y0}; v.uv = {g.x0, g.y0}; uiVertices_.push_back(v);
+        v.pos = {x1, y1}; v.uv = {g.x1, g.y1}; uiVertices_.push_back(v);
+        v.pos = {x0, y1}; v.uv = {g.x0, g.y1}; uiVertices_.push_back(v);
+
+        cursorX += g.xadvance;
+    }
+}
+
+void VulkanRenderer::buildDebugOverlayGeometry() {
+    uiVertices_.clear();
+    uiVertexCount_ = 0;
+
+    // Update smoothed FPS (EMA)
+    float instantFps = (deltaTime_ > 0.0f) ? (1.0f / deltaTime_) : 0.0f;
+    smoothedFps_ = 0.95f * smoothedFps_ + 0.05f * instantFps;
+
+    float padding = 10.0f;
+    float lineHeight = fontPixelHeight_ + 4.0f;
+    int lineCount = 3;
+    float panelWidth = 260.0f;
+    float panelHeight = padding * 2 + lineHeight * lineCount;
+
+    // Background panel (semi-transparent dark)
+    appendQuad(padding, padding, panelWidth, panelHeight,
+               glm::vec4(0.0f, 0.0f, 0.0f, 0.65f));
+
+    // Text content
+    float textX = padding + 8.0f;
+    float textY = padding + 4.0f;
+    glm::vec4 textColor(0.0f, 1.0f, 0.0f, 1.0f); // green
+
+    char buf[128];
+
+    snprintf(buf, sizeof(buf), "FPS: %.1f", smoothedFps_);
+    appendText(buf, textX, textY, textColor);
+
+    textY += lineHeight;
+    snprintf(buf, sizeof(buf), "DT:  %.2f ms", deltaTime_ * 1000.0f);
+    appendText(buf, textX, textY, textColor);
+
+    textY += lineHeight;
+    snprintf(buf, sizeof(buf), "Entities: %d", getActiveEntityCount());
+    appendText(buf, textX, textY, textColor);
+
+    uiVertexCount_ = static_cast<uint32_t>(uiVertices_.size());
+
+    // Upload to current frame's vertex buffer
+    if (uiVertexCount_ > 0 && uiVertexBuffersMapped_.size() > currentFrame_) {
+        memcpy(uiVertexBuffersMapped_[currentFrame_], uiVertices_.data(),
+               sizeof(UIVertex) * uiVertexCount_);
+    }
+}
+
+void VulkanRenderer::recordUICommands(VkCommandBuffer commandBuffer) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, uiPipeline_);
+
+    // Set viewport and scissor (same as 3D)
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapchainExtent_.width);
+    viewport.height = static_cast<float>(swapchainExtent_.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapchainExtent_;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    // Push screen size
+    UIPushConstants uiPc{};
+    uiPc.screenSize = glm::vec2(static_cast<float>(swapchainExtent_.width),
+                                 static_cast<float>(swapchainExtent_.height));
+    vkCmdPushConstants(commandBuffer, uiPipelineLayout_, VK_SHADER_STAGE_VERTEX_BIT,
+                       0, sizeof(UIPushConstants), &uiPc);
+
+    // Bind descriptor set (font atlas)
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                             uiPipelineLayout_, 0, 1, &uiDescriptorSets_[currentFrame_], 0, nullptr);
+
+    // Bind vertex buffer
+    VkBuffer vertexBuffers[] = { uiVertexBuffers_[currentFrame_] };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    // Draw
+    vkCmdDraw(commandBuffer, uiVertexCount_, 1, 0, 0);
 }

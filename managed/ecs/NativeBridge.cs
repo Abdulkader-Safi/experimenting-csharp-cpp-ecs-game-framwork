@@ -75,6 +75,10 @@ namespace ECS
         [DllImport(LIB)] public static extern int renderer_create_cylinder_mesh(float radius, float height, int segments, float r, float g, float b);
         [DllImport(LIB)] public static extern int renderer_create_capsule_mesh(float radius, float height, int segments, int rings, float r, float g, float b);
 
+        // Debug Overlay API
+        [DllImport(LIB)] public static extern void renderer_set_debug_overlay(int enabled);
+        [DllImport(LIB)] public static extern int renderer_get_entity_count();
+
         // Lighting API
         [DllImport(LIB)]
         public static extern void renderer_set_light(
@@ -205,6 +209,16 @@ namespace ECS
         public static int CreateCapsuleMesh(float radius, float height)
         {
             return renderer_create_capsule_mesh(radius, height, 32, 16, 0.7f, 0.7f, 0.7f);
+        }
+
+        public static void SetDebugOverlay(bool enabled)
+        {
+            renderer_set_debug_overlay(enabled ? 1 : 0);
+        }
+
+        public static int GetEntityCount()
+        {
+            return renderer_get_entity_count();
         }
 
         public static bool IsMouseButtonPressed(int button)
