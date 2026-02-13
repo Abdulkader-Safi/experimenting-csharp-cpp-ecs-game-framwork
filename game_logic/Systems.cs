@@ -5,6 +5,15 @@ namespace ECS
 {
     public static class Systems
     {
+        const float MAX_PITCH = 89f;
+
+        private static float ClampPitch(float pitch)
+        {
+            if (pitch > MAX_PITCH) return MAX_PITCH;
+            if (pitch < -MAX_PITCH) return -MAX_PITCH;
+            return pitch;
+        }
+
         public static void InputMovementSystem(World world)
         {
             if (FreeCameraState.IsActive) return;
@@ -126,12 +135,10 @@ namespace ECS
                 FreeCameraState.LastMouseY = my;
             }
 
-            // Clamp pitch
-            if (FreeCameraState.Pitch > 89f) FreeCameraState.Pitch = 89f;
-            if (FreeCameraState.Pitch < -89f) FreeCameraState.Pitch = -89f;
+            FreeCameraState.Pitch = ClampPitch(FreeCameraState.Pitch);
 
-            double yawRad = FreeCameraState.Yaw * Math.PI / 180.0;
-            double pitchRad = FreeCameraState.Pitch * Math.PI / 180.0;
+            double yawRad = FreeCameraState.Yaw * Transform.DegToRad;
+            double pitchRad = FreeCameraState.Pitch * Transform.DegToRad;
 
             // Forward and right vectors from yaw/pitch (yaw=0 faces -Z)
             float fwdX = (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
@@ -244,12 +251,10 @@ namespace ECS
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_F))
                     cam.Pitch -= lookStep;
 
-                // Clamp pitch
-                if (cam.Pitch > 89f) cam.Pitch = 89f;
-                if (cam.Pitch < -89f) cam.Pitch = -89f;
+                cam.Pitch = ClampPitch(cam.Pitch);
 
-                double yawRad = cam.Yaw * Math.PI / 180.0;
-                double pitchRad = cam.Pitch * Math.PI / 180.0;
+                double yawRad = cam.Yaw * Transform.DegToRad;
+                double pitchRad = cam.Pitch * Transform.DegToRad;
 
                 if (cam.Mode == 1)
                 {
@@ -308,8 +313,8 @@ namespace ECS
 
                 light.LightIndex = slot;
 
-                float innerCos = (float)Math.Cos(light.InnerConeDeg * Math.PI / 180.0);
-                float outerCos = (float)Math.Cos(light.OuterConeDeg * Math.PI / 180.0);
+                float innerCos = (float)Math.Cos(light.InnerConeDeg * Transform.DegToRad);
+                float outerCos = (float)Math.Cos(light.OuterConeDeg * Transform.DegToRad);
 
                 NativeBridge.SetLight(slot, light.Type,
                     tr.X, tr.Y, tr.Z,
@@ -364,7 +369,7 @@ namespace ECS
         {
             var tr = world.GetComponent<Transform>(entity);
             if (tr == null)
-                return new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+                return (float[])WorldTransform.Identity.Clone();
 
             float[] localMatrix = tr.ToMatrix();
             var hier = world.GetComponent<Hierarchy>(entity);
@@ -463,22 +468,24 @@ namespace ECS
 
         private static void QuatToEulerDeg(JPH_Quat q, out float rx, out float ry, out float rz)
         {
+            const double RadToDeg = 180.0 / Math.PI;
+
             // Roll (X)
             double sinr = 2.0 * (q.w * q.x + q.y * q.z);
             double cosr = 1.0 - 2.0 * (q.x * q.x + q.y * q.y);
-            rx = (float)(Math.Atan2(sinr, cosr) * 180.0 / Math.PI);
+            rx = (float)(Math.Atan2(sinr, cosr) * RadToDeg);
 
             // Pitch (Y)
             double sinp = 2.0 * (q.w * q.y - q.z * q.x);
             if (Math.Abs(sinp) >= 1.0)
                 ry = (float)(Math.Sign(sinp) * 90.0);
             else
-                ry = (float)(Math.Asin(sinp) * 180.0 / Math.PI);
+                ry = (float)(Math.Asin(sinp) * RadToDeg);
 
             // Yaw (Z)
             double siny = 2.0 * (q.w * q.z + q.x * q.y);
             double cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-            rz = (float)(Math.Atan2(siny, cosy) * 180.0 / Math.PI);
+            rz = (float)(Math.Atan2(siny, cosy) * RadToDeg);
         }
 
         // Debug collider visualization — tracks debug renderer entity IDs per ECS entity

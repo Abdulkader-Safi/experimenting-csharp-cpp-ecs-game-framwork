@@ -29,6 +29,8 @@ namespace ECS
 
     public class Transform
     {
+        public const double DegToRad = Math.PI / 180.0;
+
         public float X = 0f, Y = 0f, Z = 0f;
         public float RotX = 0f, RotY = 0f, RotZ = 0f;
         public float ScaleX = 1f, ScaleY = 1f, ScaleZ = 1f;
@@ -37,12 +39,12 @@ namespace ECS
         // Order: Scale -> RotX -> RotY -> RotZ -> Translate
         public float[] ToMatrix()
         {
-            float cx = (float)Math.Cos(RotX * Math.PI / 180.0);
-            float sx = (float)Math.Sin(RotX * Math.PI / 180.0);
-            float cy = (float)Math.Cos(RotY * Math.PI / 180.0);
-            float sy = (float)Math.Sin(RotY * Math.PI / 180.0);
-            float cz = (float)Math.Cos(RotZ * Math.PI / 180.0);
-            float sz = (float)Math.Sin(RotZ * Math.PI / 180.0);
+            float cx = (float)Math.Cos(RotX * DegToRad);
+            float sx = (float)Math.Sin(RotX * DegToRad);
+            float cy = (float)Math.Cos(RotY * DegToRad);
+            float sy = (float)Math.Sin(RotY * DegToRad);
+            float cz = (float)Math.Cos(RotZ * DegToRad);
+            float sz = (float)Math.Sin(RotZ * DegToRad);
 
             // Combined rotation: Rz * Ry * Rx (same order as glm::rotate chain)
             float r00 = cy * cz;
@@ -93,6 +95,10 @@ namespace ECS
 
     public class WorldTransform
     {
+        public static readonly float[] Identity = new float[] {
+            1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1
+        };
+
         public float[] Matrix = new float[] {
             1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1
         };

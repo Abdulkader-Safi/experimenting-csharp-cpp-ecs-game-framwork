@@ -651,7 +651,8 @@ int VulkanRenderer::createCapsuleMesh(float radius, float height, int segments,
   return addMesh(verts, inds);
 }
 
-int VulkanRenderer::createEntity(int meshId) {
+int VulkanRenderer::allocateEntity(std::vector<EntityData> &pool,
+                                   std::vector<int> &freeSlots, int meshId) {
   if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) {
     std::cerr << "Invalid mesh ID: " << meshId << std::endl;
     return -1;
@@ -663,16 +664,20 @@ int VulkanRenderer::createEntity(int meshId) {
   ent.active = true;
 
   int entityId;
-  if (!freeEntitySlots_.empty()) {
-    entityId = freeEntitySlots_.back();
-    freeEntitySlots_.pop_back();
-    entities_[entityId] = ent;
+  if (!freeSlots.empty()) {
+    entityId = freeSlots.back();
+    freeSlots.pop_back();
+    pool[entityId] = ent;
   } else {
-    entityId = static_cast<int>(entities_.size());
-    entities_.push_back(ent);
+    entityId = static_cast<int>(pool.size());
+    pool.push_back(ent);
   }
 
   return entityId;
+}
+
+int VulkanRenderer::createEntity(int meshId) {
+  return allocateEntity(entities_, freeEntitySlots_, meshId);
 }
 
 void VulkanRenderer::setEntityTransform(int entityId, const float *mat4x4) {
@@ -1420,58 +1425,6 @@ void VulkanRenderer::createDepthResources() {
       createImageView(depthImage_, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void VulkanRenderer::createVertexBuffer() {
-  VkDeviceSize bufferSize = sizeof(Vertex) * allVertices_.size();
-
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
-
-  void *data;
-  vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-  memcpy(data, allVertices_.data(), static_cast<size_t>(bufferSize));
-  vkUnmapMemory(device_, stagingBufferMemory);
-
-  createBuffer(
-      bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer_, vertexBufferMemory_);
-
-  copyBuffer(stagingBuffer, vertexBuffer_, bufferSize);
-
-  vkDestroyBuffer(device_, stagingBuffer, nullptr);
-  vkFreeMemory(device_, stagingBufferMemory, nullptr);
-}
-
-void VulkanRenderer::createIndexBuffer() {
-  VkDeviceSize bufferSize = sizeof(uint32_t) * allIndices_.size();
-
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
-
-  void *data;
-  vkMapMemory(device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-  memcpy(data, allIndices_.data(), static_cast<size_t>(bufferSize));
-  vkUnmapMemory(device_, stagingBufferMemory);
-
-  createBuffer(
-      bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer_, indexBufferMemory_);
-
-  copyBuffer(stagingBuffer, indexBuffer_, bufferSize);
-
-  vkDestroyBuffer(device_, stagingBuffer, nullptr);
-  vkFreeMemory(device_, stagingBufferMemory, nullptr);
-}
-
 void VulkanRenderer::createUniformBuffers() {
   VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -1713,37 +1666,47 @@ void VulkanRenderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   vkBindBufferMemory(device_, buffer, memory, 0);
 }
 
-void VulkanRenderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
-                                VkDeviceSize size) {
+VkCommandBuffer VulkanRenderer::beginOneTimeCommands() {
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandPool = commandPool_;
   allocInfo.commandBufferCount = 1;
 
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(device_, &allocInfo, &commandBuffer);
+  VkCommandBuffer cmd;
+  vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  vkBeginCommandBuffer(cmd, &beginInfo);
 
-  VkBufferCopy copyRegion{};
-  copyRegion.size = size;
-  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+  return cmd;
+}
 
-  vkEndCommandBuffer(commandBuffer);
+void VulkanRenderer::endOneTimeCommands(VkCommandBuffer cmd) {
+  vkEndCommandBuffer(cmd);
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  submitInfo.pCommandBuffers = &cmd;
 
   vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
   vkQueueWaitIdle(graphicsQueue_);
 
-  vkFreeCommandBuffers(device_, commandPool_, 1, &commandBuffer);
+  vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
+}
+
+void VulkanRenderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
+                                VkDeviceSize size) {
+  VkCommandBuffer cmd = beginOneTimeCommands();
+
+  VkBufferCopy copyRegion{};
+  copyRegion.size = size;
+  vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, 1, &copyRegion);
+
+  endOneTimeCommands(cmd);
 }
 
 void VulkanRenderer::createImage(uint32_t w, uint32_t h, VkFormat format,
@@ -1864,36 +1827,10 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer,
                           pipelineLayout_, 0, 1,
                           &descriptorSets_[currentFrame_], 0, nullptr);
 
-  // Draw each active entity with its own push-constant model matrix
-  for (size_t i = 0; i < entities_.size(); i++) {
-    const auto &ent = entities_[i];
-    if (!ent.active)
-      continue;
-
-    const MeshData &mesh = meshes_[ent.meshId];
-
-    // Bind per-material texture descriptor (set 1)
-    VkDescriptorSet matSet = materials_[mesh.materialId].descriptorSet;
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipelineLayout_, 1, 1, &matSet, 0, nullptr);
-
-    PushConstantData pc{};
-    pc.model = ent.transform;
-    vkCmdPushConstants(commandBuffer, pipelineLayout_,
-                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData),
-                       &pc);
-
-    vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, mesh.indexOffset,
-                     mesh.vertexOffset, 0);
-  }
-
-  // Debug wireframe overlay (rendered when debug is enabled)
-  if (debugOverlayEnabled_ && !debugEntities_.empty()) {
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      debugPipeline_);
-    // viewport/scissor already set, vertex/index buffers already bound
-    for (size_t i = 0; i < debugEntities_.size(); i++) {
-      const auto &ent = debugEntities_[i];
+  // Draw all active entities in a pool using push-constant model matrices
+  auto drawEntities = [&](const std::vector<EntityData> &pool) {
+    for (size_t i = 0; i < pool.size(); i++) {
+      const auto &ent = pool[i];
       if (!ent.active)
         continue;
 
@@ -1912,6 +1849,15 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer,
       vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, mesh.indexOffset,
                        mesh.vertexOffset, 0);
     }
+  };
+
+  drawEntities(entities_);
+
+  // Debug wireframe overlay (rendered when debug is enabled)
+  if (debugOverlayEnabled_ && !debugEntities_.empty()) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      debugPipeline_);
+    drawEntities(debugEntities_);
   }
 
   // UI overlay (rendered on top of 3D scene, within same render pass)
@@ -1994,6 +1940,15 @@ void VulkanRenderer::updateUniformBuffer(uint32_t currentImage) {
 // Lighting API
 // ---------------------------------------------------------------------------
 
+void VulkanRenderer::recalcNumLights() {
+  int maxActive = 0;
+  for (int i = 0; i < MAX_LIGHTS; i++) {
+    if (lightData_.lights[i].color.w > 0.0f)
+      maxActive = i + 1;
+  }
+  lightData_.numLights = maxActive;
+}
+
 void VulkanRenderer::setLight(int index, int type, float posX, float posY,
                               float posZ, float dirX, float dirY, float dirZ,
                               float r, float g, float b, float intensity,
@@ -2010,16 +1965,7 @@ void VulkanRenderer::setLight(int index, int type, float posX, float posY,
   light.radius = radius;
   light.type = type;
 
-  // Recalculate numLights as max active index + 1
-  int maxActive = 0;
-  for (int i = 0; i < MAX_LIGHTS; i++) {
-    if (lightData_.lights[i].color.w > 0.0f || lightData_.lights[i].type >= 0) {
-      // Check if this slot has been explicitly set (intensity > 0)
-      if (lightData_.lights[i].color.w > 0.0f)
-        maxActive = i + 1;
-    }
-  }
-  lightData_.numLights = maxActive;
+  recalcNumLights();
 }
 
 void VulkanRenderer::clearLight(int index) {
@@ -2027,14 +1973,7 @@ void VulkanRenderer::clearLight(int index) {
     return;
 
   lightData_.lights[index] = GpuLight{};
-
-  // Recalculate numLights
-  int maxActive = 0;
-  for (int i = 0; i < MAX_LIGHTS; i++) {
-    if (lightData_.lights[i].color.w > 0.0f)
-      maxActive = i + 1;
-  }
-  lightData_.numLights = maxActive;
+  recalcNumLights();
 }
 
 void VulkanRenderer::setAmbientIntensity(float intensity) {
@@ -2063,27 +2002,7 @@ int VulkanRenderer::getActiveEntityCount() const {
 // ---------------------------------------------------------------------------
 
 int VulkanRenderer::createDebugEntity(int meshId) {
-  if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) {
-    std::cerr << "Invalid mesh ID for debug entity: " << meshId << std::endl;
-    return -1;
-  }
-
-  EntityData ent{};
-  ent.meshId = meshId;
-  ent.transform = glm::mat4(1.0f);
-  ent.active = true;
-
-  int entityId;
-  if (!freeDebugEntitySlots_.empty()) {
-    entityId = freeDebugEntitySlots_.back();
-    freeDebugEntitySlots_.pop_back();
-    debugEntities_[entityId] = ent;
-  } else {
-    entityId = static_cast<int>(debugEntities_.size());
-    debugEntities_.push_back(ent);
-  }
-
-  return entityId;
+  return allocateEntity(debugEntities_, freeDebugEntitySlots_, meshId);
 }
 
 void VulkanRenderer::setDebugEntityTransform(int entityId,
@@ -2287,19 +2206,7 @@ void VulkanRenderer::createUIVertexBuffers() {
 void VulkanRenderer::transitionImageLayout(VkImage image,
                                            VkImageLayout oldLayout,
                                            VkImageLayout newLayout) {
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = commandPool_;
-  allocInfo.commandBufferCount = 1;
-
-  VkCommandBuffer cmd;
-  vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
-
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cmd, &beginInfo);
+  VkCommandBuffer cmd = beginOneTimeCommands();
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -2338,16 +2245,7 @@ void VulkanRenderer::transitionImageLayout(VkImage image,
   vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1,
                        &barrier);
 
-  vkEndCommandBuffer(cmd);
-
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &cmd;
-  vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(graphicsQueue_);
-
-  vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
+  endOneTimeCommands(cmd);
 }
 
 void VulkanRenderer::createFontResources() {
@@ -2447,70 +2345,16 @@ void VulkanRenderer::createFontResources() {
 
   transitionImageLayout(fontImage_, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-  // Copy buffer to image
-  {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool_;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer cmd;
-    vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd, &beginInfo);
-
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {static_cast<uint32_t>(atlasW),
-                          static_cast<uint32_t>(atlasH), 1};
-
-    vkCmdCopyBufferToImage(cmd, stagingBuffer, fontImage_,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    vkEndCommandBuffer(cmd);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmd;
-    vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue_);
-
-    vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
-  }
-
+  copyBufferToImage(stagingBuffer, fontImage_, static_cast<uint32_t>(atlasW),
+                    static_cast<uint32_t>(atlasH));
   transitionImageLayout(fontImage_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   vkDestroyBuffer(device_, stagingBuffer, nullptr);
   vkFreeMemory(device_, stagingMemory, nullptr);
 
-  // Create image view
-  VkImageViewCreateInfo viewInfo{};
-  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = fontImage_;
-  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  viewInfo.format = VK_FORMAT_R8_UNORM;
-  viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  viewInfo.subresourceRange.baseMipLevel = 0;
-  viewInfo.subresourceRange.levelCount = 1;
-  viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = 1;
-
-  checkVk(vkCreateImageView(device_, &viewInfo, nullptr, &fontImageView_),
-          "Failed to create font image view");
+  fontImageView_ = createImageView(fontImage_, VK_FORMAT_R8_UNORM,
+                                   VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void VulkanRenderer::createUIDescriptorPool() {
@@ -2694,19 +2538,7 @@ int VulkanRenderer::createMaterial(VkImageView textureView) {
 
 void VulkanRenderer::copyBufferToImage(VkBuffer buffer, VkImage image,
                                        uint32_t width, uint32_t height) {
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = commandPool_;
-  allocInfo.commandBufferCount = 1;
-
-  VkCommandBuffer cmd;
-  vkAllocateCommandBuffers(device_, &allocInfo, &cmd);
-
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cmd, &beginInfo);
+  VkCommandBuffer cmd = beginOneTimeCommands();
 
   VkBufferImageCopy region{};
   region.bufferOffset = 0;
@@ -2722,16 +2554,7 @@ void VulkanRenderer::copyBufferToImage(VkBuffer buffer, VkImage image,
   vkCmdCopyBufferToImage(cmd, buffer, image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-  vkEndCommandBuffer(cmd);
-
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &cmd;
-  vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(graphicsQueue_);
-
-  vkFreeCommandBuffers(device_, commandPool_, 1, &cmd);
+  endOneTimeCommands(cmd);
 }
 
 int VulkanRenderer::loadTextureFromMemory(const uint8_t *data, size_t size) {
@@ -2876,32 +2699,12 @@ void VulkanRenderer::appendQuad(float x, float y, float w, float h,
   if (uiVertices_.size() + 6 > UI_MAX_VERTICES)
     return;
 
-  // For solid quads, use UV (0,0) which maps to top-left of atlas.
-  // With font loaded, that pixel is white (255). With placeholder, entire atlas
-  // is white. We use UV=0,0 for all corners — font atlas top-left corner should
-  // be a filled pixel. Actually, for the placeholder (1x1 white), any UV works.
-  // For the font atlas, we need a white region. Use the space glyph area or
-  // just (0,0).
+  // For solid quads, sample a UV that maps to a fully opaque atlas pixel.
+  // Without font: placeholder is 1x1 white, so (0,0) works.
+  // With font: sample the center of the '#' glyph (guaranteed filled).
   float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f;
 
   if (fontLoaded_) {
-    // Use the bottom-right of the font atlas which is likely empty (white=0).
-    // Actually we need alpha=1 for solid quads. The font atlas has alpha=255
-    // where glyphs are. For solid quads without font, we need the R channel to
-    // be 1.0. Solution: use a small region that we know is filled (the period
-    // glyph, or just override). Simplest: just set all UVs to point to a glyph
-    // interior. Or better: set alpha in color and make the shader multiply. We
-    // need R channel = 1.0 for full opacity. Let's find the '.' glyph or use a
-    // specific pixel. Actually, let's just override: We'll emit vertices with
-    // UV pointing to the font atlas pixel that has value 255. The space glyph
-    // area might be 0. Let's use the solid block of the 'M' glyph center.
-    // Better approach: just use a special flag. Simplest: set UV to (-1,-1) and
-    // check in shader? No, let's keep it simple. We placed white=255 in the
-    // bitmap where glyphs are drawn. For a solid quad, let's use UV coordinates
-    // that hit inside a fully-filled glyph. The 'W' or block character would
-    // work. Let's just use the center of the 'M' glyph. Actually, the most
-    // robust approach: just find the UV that maps to a white pixel. In the
-    // baked font, the glyph interiors are white. Let's use the center of '#'.
     const GlyphInfo &g = glyphs_['#' - GLYPH_FIRST];
     float cu = (g.x0 + g.x1) * 0.5f;
     float cv = (g.y0 + g.y1) * 0.5f;

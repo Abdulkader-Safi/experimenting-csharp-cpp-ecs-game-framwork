@@ -14,9 +14,11 @@
 
 #define MAX_LIGHTS 8
 
-#define LIGHT_DIRECTIONAL 0
-#define LIGHT_POINT 1
-#define LIGHT_SPOT 2
+enum LightType {
+  LIGHT_DIRECTIONAL = 0,
+  LIGHT_POINT = 1,
+  LIGHT_SPOT = 2,
+};
 
 struct GpuLight {
   alignas(16) glm::vec4 position;  // xyz = pos, w = unused
@@ -345,8 +347,6 @@ private:
   void createFramebuffers();
   void createCommandPool();
   void createDepthResources();
-  void createVertexBuffer();
-  void createIndexBuffer();
   void createUniformBuffers();
   void createDescriptorPool();
   void createDescriptorSets();
@@ -361,6 +361,15 @@ private:
   void rebuildGeometryBuffers();
   int addMesh(const std::vector<Vertex> &vertices,
               const std::vector<uint32_t> &indices);
+
+  // One-time command buffer helpers
+  VkCommandBuffer beginOneTimeCommands();
+  void endOneTimeCommands(VkCommandBuffer commandBuffer);
+
+  // Entity pool helpers
+  int allocateEntity(std::vector<EntityData> &pool, std::vector<int> &freeSlots,
+                     int meshId);
+  void recalcNumLights();
 
   // Helpers
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;

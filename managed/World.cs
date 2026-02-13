@@ -49,10 +49,10 @@ namespace ECS
 
             // Cascade-delete children
             var children = new List<int>();
-            string hierarchyKey = typeof(Hierarchy).FullName;
-            if (components_.ContainsKey(hierarchyKey))
+            Dictionary<int, object> hierarchyStore;
+            if (components_.TryGetValue(typeof(Hierarchy).FullName, out hierarchyStore))
             {
-                foreach (var kvp in components_[hierarchyKey])
+                foreach (var kvp in hierarchyStore)
                 {
                     var h = (Hierarchy)kvp.Value;
                     if (h.Parent == entity)
@@ -89,35 +89,51 @@ namespace ECS
         public void AddComponent<T>(int entity, T component) where T : class
         {
             string key = typeof(T).FullName;
-            if (!components_.ContainsKey(key))
-                components_[key] = new Dictionary<int, object>();
-            components_[key][entity] = component;
+            Dictionary<int, object> store;
+            if (!components_.TryGetValue(key, out store))
+            {
+                store = new Dictionary<int, object>();
+                components_[key] = store;
+            }
+            store[entity] = component;
         }
 
         public T GetComponent<T>(int entity) where T : class
         {
             string key = typeof(T).FullName;
-            if (components_.ContainsKey(key) && components_[key].ContainsKey(entity))
-                return (T)components_[key][entity];
+            Dictionary<int, object> store;
+            object value;
+            if (components_.TryGetValue(key, out store) && store.TryGetValue(entity, out value))
+                return (T)value;
             return null;
         }
 
         public bool HasComponent<T>(int entity) where T : class
         {
             string key = typeof(T).FullName;
-            return components_.ContainsKey(key) && components_[key].ContainsKey(entity);
+            Dictionary<int, object> store;
+            return components_.TryGetValue(key, out store) && store.ContainsKey(entity);
         }
 
         public List<int> Query(params Type[] types)
         {
+            // Pre-resolve component stores to avoid repeated dictionary lookups per entity
+            var stores = new Dictionary<int, object>[types.Length];
+            for (int i = 0; i < types.Length; i++)
+            {
+                Dictionary<int, object> store;
+                if (!components_.TryGetValue(types[i].FullName, out store))
+                    return new List<int>();
+                stores[i] = store;
+            }
+
             var result = new List<int>();
             foreach (int entity in aliveEntities_)
             {
                 bool hasAll = true;
-                foreach (Type t in types)
+                for (int i = 0; i < stores.Length; i++)
                 {
-                    string key = t.FullName;
-                    if (!components_.ContainsKey(key) || !components_[key].ContainsKey(entity))
+                    if (!stores[i].ContainsKey(entity))
                     {
                         hasAll = false;
                         break;
