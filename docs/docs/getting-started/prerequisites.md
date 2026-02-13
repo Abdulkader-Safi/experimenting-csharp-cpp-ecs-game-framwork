@@ -30,6 +30,16 @@ glslc --version      # Shader compiler
 brew list glfw glm   # Libraries
 ```
 
+## Optional — IDE IntelliSense
+
+For C# autocomplete, go-to-definition, and error checking in VS Code (or other IDEs), install the [.NET SDK](https://dotnet.microsoft.com/download) and run:
+
+```bash
+dotnet restore
+```
+
+This generates the project assets that the C# language server needs. The `.sln` and `.csproj` are for IDE support only — the actual build uses `mcs` via the Makefile.
+
 ## Windows & Linux
 
 :::info Work in Progress

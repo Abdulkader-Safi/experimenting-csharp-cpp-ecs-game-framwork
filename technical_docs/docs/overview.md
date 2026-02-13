@@ -34,6 +34,8 @@ Data flows **one direction**: C# tells C++ what to render. The native side never
 | `managed/ecs/Components.cs`   | All component definitions (plain C# classes, data only). Includes `Transform`, `MeshRenderer`, `Camera`, `Light`, `Hierarchy`, etc.                                                                                                                                                                            |
 | `managed/ecs/Systems.cs`      | All system implementations (`static void` methods). The built-in system chain runs in registration order: InputMovement, Timer, FreeCamera, CameraFollow, LightSync, HierarchyTransform, DebugOverlay, RenderSync.                                                                                             |
 | `Makefile`                    | Top-level build orchestration: shader compilation, CMake invocation, C# compilation, and the `run` target that sets environment variables and launches Mono.                                                                                                                                                   |
+| `SaFiEngine.sln`              | Solution file at repo root. Used by IDEs (VS Code C# Dev Kit, OmniSharp) to discover the C# project. Not used by the Makefile build.                                                                                                                                                                           |
+| `managed/SaFiEngine.csproj`   | .NET project file for IDE IntelliSense (autocomplete, go-to-definition). Targets `net10.0`. Not used by the Makefile build — `mcs` compiles directly from `VIEWER_CS`.                                                                                                                                         |
 
 ## Build Pipeline
 
@@ -133,5 +135,5 @@ Every new function exposed to C# requires changes in **three files**:
 1. Create the `.cs` file under `managed/` (typically in `managed/ecs/`).
 2. Add its path to the `VIEWER_CS` variable in the `Makefile` so the compiler includes it.
 
-That is the only build-system change required -- there is no `.csproj` or solution file.
+The `.csproj` uses `EnableDefaultCompileItems` so it discovers new files automatically — no project file changes needed. Only the Makefile needs updating.
 :::

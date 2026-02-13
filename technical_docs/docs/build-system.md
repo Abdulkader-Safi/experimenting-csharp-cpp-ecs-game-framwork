@@ -99,6 +99,10 @@ $(VIEWER_EXE): $(VIEWER_CS)
 
 Uses the Mono C# compiler (`mcs`). All source files are listed explicitly in `VIEWER_CS` — there is no automatic file discovery.
 
+:::info IDE IntelliSense
+The repo includes `SaFiEngine.sln` (repo root) and `managed/SaFiEngine.csproj` for C# language server support (autocomplete, go-to-definition, error checking). These files are **not used by the build** — the Makefile drives compilation via `mcs`. After cloning, run `dotnet restore` once to generate `managed/obj/project.assets.json`, which the language server needs to resolve `System.*` types.
+:::
+
 ## Runtime Environment
 
 `make run` sets environment variables before executing:
@@ -118,5 +122,5 @@ VK_ICD_FILENAMES=/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json \
 
 **Adding a new C++ source file**: Add it to `add_library(renderer SHARED ...)` in `native/CMakeLists.txt`. CMake will pick it up on next build.
 
-**Adding a new C# file**: Add the file path to the `VIEWER_CS` variable in the `Makefile`.
+**Adding a new C# file**: Add the file path to the `VIEWER_CS` variable in the `Makefile`. The `.csproj` discovers files automatically, so no project file update is needed.
 :::

@@ -7,3 +7,6 @@ build/
 compile_commands.json
 
 models/*.glb
+
+managed/bin/
+managed/obj/

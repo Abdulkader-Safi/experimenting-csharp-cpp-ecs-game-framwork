@@ -4,6 +4,7 @@
 
 ```
 managed/
+  SaFiEngine.csproj      # .NET project file (IDE IntelliSense only, not used by build)
   Viewer.cs              # Entry point (Main)
   ecs/
     World.cs             # ECS world: entities, components, systems, queries
@@ -33,6 +34,10 @@ assets/
 
 models/                  # glTF model files (.glb)
 ```
+
+## Solution & Project Files
+
+`SaFiEngine.sln` (repo root) and `managed/SaFiEngine.csproj` provide C# IntelliSense in VS Code and other IDEs. They are not used by the Makefile build. After cloning, run `dotnet restore` once to enable autocomplete and go-to-definition.
 
 ## Adding New .cs Files
 

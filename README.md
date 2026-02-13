@@ -100,6 +100,10 @@ Changes are required in three places:
 
 Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 
+### IDE Setup
+
+The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# IntelliSense (autocomplete, go-to-definition). These are used by the IDE only — the actual build uses `mcs` via the Makefile. Run `dotnet restore` once after cloning to generate the project assets the language server needs.
+
 ## Make Targets
 
 | Target         | Description                            |
@@ -117,6 +121,7 @@ Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 ```
 .
 ├── Makefile                          # Build automation
+├── SaFiEngine.sln                   # Solution file (IDE project discovery)
 ├── build-app.sh                     # macOS .app packaging script
 ├── native/
 │   ├── CMakeLists.txt               # CMake config for shared library
@@ -132,6 +137,7 @@ Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
 │       ├── cgltf.h                  # glTF 2.0 parsing library
 │       └── stb_truetype.h           # Font rasterization library
 ├── managed/
+│   ├── SaFiEngine.csproj           # Project file (IDE IntelliSense only, not used by build)
 │   ├── Viewer.cs                    # Entry point — spawns entities, runs game loop
 │   └── ecs/
 │       ├── World.cs                 # ECS world: entities, components, systems
