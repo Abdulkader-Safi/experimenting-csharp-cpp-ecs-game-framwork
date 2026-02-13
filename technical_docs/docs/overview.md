@@ -7,35 +7,41 @@ This page describes the high-level architecture of the Safi Engine: how C# game 
 The engine is split into two language domains. C# (running on Mono) owns the main loop, ECS world, and all gameplay logic. C++ owns the Vulkan rendering backend. The two sides communicate exclusively through P/Invoke -- a foreign-function interface where C# calls `extern "C"` functions exported from a shared library.
 
 ```
-C# World (managed/ecs/)          C++ VulkanRenderer (native/)
-  Entities + Components   ──P/Invoke──>  GPU resources
-  Systems (per-frame)     ──────────>    Draw calls
-  NativeBridge.cs         ──DllImport──> bridge.cpp (extern "C")
+C# Engine (managed/)            C++ VulkanRenderer (native/)
+  World, Components, Bridge
+C# Game (game_logic/)
+  Scene setup, Systems       ──P/Invoke──>  GPU resources
+  Per-frame logic            ──────────>    Draw calls
+  NativeBridge.cs            ──DllImport──> bridge.cpp (extern "C")
 ```
 
 Data flows **one direction**: C# tells C++ what to render. The native side never calls back into managed code. Every frame, C# systems iterate over ECS components and issue bridge calls to set transforms, update lights, submit UI vertices, and trigger the draw. The C++ side translates these into Vulkan command buffers.
 
 ## File Map
 
-| File                          | Purpose                                                                                                                                                                                                                                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `native/renderer.h`           | `VulkanRenderer` class declaration and all GPU-facing struct definitions (`Vertex`, `UIVertex`, `GpuLight`, `LightUBO`, etc.). Also defines `MAX_LIGHTS` (8) and light type constants.                                                                                                                         |
-| `native/renderer.cpp`         | ~3000 lines. The entire Vulkan implementation: instance/device/swapchain creation, render pass setup, both graphics pipelines, mesh loading (glTF via cgltf), texture loading (stb_image), font atlas baking (stb_truetype), UI vertex buffer management, lighting UBO updates, and the per-frame render loop. |
-| `native/bridge.cpp`           | `extern "C"` wrappers that delegate to a file-static `g_renderer` instance of `VulkanRenderer`. Each function is a thin try/catch shell around the corresponding method. This is the only translation unit that C# can see.                                                                                    |
-| `native/shaders/shader.vert`  | 3D vertex shader. Reads a UBO containing `view` and `proj` matrices, receives the per-entity `model` matrix via push constant. Outputs world-space position, normal, vertex color, and UV coordinates to the fragment stage.                                                                                   |
-| `native/shaders/shader.frag`  | 3D fragment shader. Implements Blinn-Phong shading with support for up to 8 dynamic lights (directional, point, spot). Samples a base color texture and combines it with per-vertex color and lighting.                                                                                                        |
-| `native/shaders/ui.vert`      | UI vertex shader. Converts pixel coordinates to NDC using a `screenSize` vec2 push constant. Passes through UV and vertex color.                                                                                                                                                                               |
-| `native/shaders/ui.frag`      | UI fragment shader. Samples an `R8_UNORM` font atlas texture, multiplies the single-channel alpha by the vertex color, and outputs for alpha blending.                                                                                                                                                         |
-| `native/CMakeLists.txt`       | CMake configuration. Links against Vulkan, GLFW, and GLM. Produces `librenderer.dylib`. Enables `VK_KHR_portability_enumeration` for MoltenVK compatibility. Generates `compile_commands.json` for IDE intellisense.                                                                                           |
-| `native/vendor/`              | Header-only third-party libraries: `cgltf.h` (glTF 2.0 parsing), `stb_truetype.h` (TrueType font rasterization), `stb_image.h` (image decoding for textures). Each requires a `#define *_IMPLEMENTATION` in exactly one `.cpp` file.                                                                           |
-| `managed/ecs/NativeBridge.cs` | C# P/Invoke declarations (`[DllImport("renderer")]`) for every function exported by `bridge.cpp`. Also defines GLFW key/mouse constants used by input systems.                                                                                                                                                 |
-| `managed/Viewer.cs`           | Application entry point. Creates the ECS `World`, registers all systems, and runs the main loop.                                                                                                                                                                                                               |
-| `managed/ecs/World.cs`        | ECS world: entity creation/despawning, component storage, and `Query()` for matching entities by component type.                                                                                                                                                                                               |
-| `managed/ecs/Components.cs`   | All component definitions (plain C# classes, data only). Includes `Transform`, `MeshRenderer`, `Camera`, `Light`, `Hierarchy`, etc.                                                                                                                                                                            |
-| `managed/ecs/Systems.cs`      | All system implementations (`static void` methods). The built-in system chain runs in registration order: InputMovement, Timer, FreeCamera, CameraFollow, LightSync, HierarchyTransform, DebugOverlay, RenderSync.                                                                                             |
-| `Makefile`                    | Top-level build orchestration: shader compilation, CMake invocation, C# compilation, and the `run` target that sets environment variables and launches Mono.                                                                                                                                                   |
-| `SaFiEngine.sln`              | Solution file at repo root. Used by IDEs (VS Code C# Dev Kit, OmniSharp) to discover the C# project. Not used by the Makefile build.                                                                                                                                                                           |
-| `managed/SaFiEngine.csproj`   | .NET project file for IDE IntelliSense (autocomplete, go-to-definition). Targets `net10.0`. Not used by the Makefile build — `mcs` compiles directly from `VIEWER_CS`.                                                                                                                                         |
+| File                         | Purpose                                                                                                                                                                                                                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `native/renderer.h`          | `VulkanRenderer` class declaration and all GPU-facing struct definitions (`Vertex`, `UIVertex`, `GpuLight`, `LightUBO`, etc.). Also defines `MAX_LIGHTS` (8) and light type constants.                                                                                                                         |
+| `native/renderer.cpp`        | ~3000 lines. The entire Vulkan implementation: instance/device/swapchain creation, render pass setup, both graphics pipelines, mesh loading (glTF via cgltf), texture loading (stb_image), font atlas baking (stb_truetype), UI vertex buffer management, lighting UBO updates, and the per-frame render loop. |
+| `native/bridge.cpp`          | `extern "C"` wrappers that delegate to a file-static `g_renderer` instance of `VulkanRenderer`. Each function is a thin try/catch shell around the corresponding method. This is the only translation unit that C# can see.                                                                                    |
+| `native/shaders/shader.vert` | 3D vertex shader. Reads a UBO containing `view` and `proj` matrices, receives the per-entity `model` matrix via push constant. Outputs world-space position, normal, vertex color, and UV coordinates to the fragment stage.                                                                                   |
+| `native/shaders/shader.frag` | 3D fragment shader. Implements Blinn-Phong shading with support for up to 8 dynamic lights (directional, point, spot). Samples a base color texture and combines it with per-vertex color and lighting.                                                                                                        |
+| `native/shaders/ui.vert`     | UI vertex shader. Converts pixel coordinates to NDC using a `screenSize` vec2 push constant. Passes through UV and vertex color.                                                                                                                                                                               |
+| `native/shaders/ui.frag`     | UI fragment shader. Samples an `R8_UNORM` font atlas texture, multiplies the single-channel alpha by the vertex color, and outputs for alpha blending.                                                                                                                                                         |
+| `native/CMakeLists.txt`      | CMake configuration. Links against Vulkan, GLFW, and GLM. Produces `librenderer.dylib`. Enables `VK_KHR_portability_enumeration` for MoltenVK compatibility. Generates `compile_commands.json` for IDE intellisense.                                                                                           |
+| `native/vendor/`             | Header-only third-party libraries: `cgltf.h` (glTF 2.0 parsing), `stb_truetype.h` (TrueType font rasterization), `stb_image.h` (image decoding for textures). Each requires a `#define *_IMPLEMENTATION` in exactly one `.cpp` file.                                                                           |
+| `managed/Viewer.cs`          | Application entry point. Creates the ECS `World`, calls `Game.Setup(world)`, and runs the main loop.                                                                                                                                                                                                          |
+| `managed/World.cs`           | ECS world: entity creation/despawning, component storage, and `Query()` for matching entities by component type.                                                                                                                                                                                               |
+| `managed/Components.cs`      | All component definitions (plain C# classes, data only). Includes `Transform`, `MeshRenderer`, `Camera`, `Light`, `Hierarchy`, etc.                                                                                                                                                                            |
+| `managed/NativeBridge.cs`    | C# P/Invoke declarations (`[DllImport("renderer")]`) for every function exported by `bridge.cpp`. Also defines GLFW key/mouse constants used by input systems.                                                                                                                                                 |
+| `managed/FreeCameraState.cs` | Static state for the debug free camera.                                                                                                                                                                                                                                                                        |
+| `managed/HotReload.cs`       | File watcher + recompiler for dev mode. Watches `game_logic/` for changes and hot-swaps `GameLogic.dll`.                                                                                                                                                                                                      |
+| `game_logic/Game.cs`         | Scene setup entry point. `Game.Setup(world)` spawns entities, configures components, and registers systems.                                                                                                                                                                                                    |
+| `game_logic/Systems.cs`      | All system implementations (`static void` methods). The built-in system chain runs in registration order: InputMovement, Timer, FreeCamera, CameraFollow, LightSync, HierarchyTransform, DebugOverlay, RenderSync.                                                                                             |
+| `game_logic/GameConstants.cs`| Tunable config values (debug mode, camera sensitivity, movement speed).                                                                                                                                                                                                                                        |
+| `Makefile`                   | Top-level build orchestration: shader compilation, CMake invocation, C# compilation, and the `run` target that sets environment variables and launches Mono.                                                                                                                                                   |
+| `SaFiEngine.sln`             | Solution file at repo root. Used by IDEs (VS Code C# Dev Kit, OmniSharp) to discover the C# project. Not used by the Makefile build.                                                                                                                                                                           |
+| `managed/SaFiEngine.csproj`  | .NET project file for IDE IntelliSense (autocomplete, go-to-definition). Targets `net10.0`. Not used by the Makefile build — `mcs` compiles directly from `VIEWER_CS`.                                                                                                                                         |
 
 ## Build Pipeline
 
@@ -64,13 +70,13 @@ CMake configures and builds the C++ code into `build/librenderer.dylib`. A symli
 ### 3. C# Compilation
 
 ```
-mcs -out:build/Viewer.exe managed/Viewer.cs managed/ecs/World.cs \
-    managed/ecs/Components.cs managed/ecs/Systems.cs \
-    managed/ecs/NativeBridge.cs managed/ecs/GameConstants.cs \
-    managed/ecs/FreeCameraState.cs
+mcs -out:build/Viewer.exe managed/Viewer.cs managed/World.cs \
+    managed/Components.cs managed/NativeBridge.cs \
+    managed/FreeCameraState.cs \
+    game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
 ```
 
-All managed source files listed in the Makefile's `VIEWER_CS` variable are compiled into a single Mono executable.
+All managed source files listed in the Makefile's `MANAGED_CS` and `GAMELOGIC_CS_FILES` variables are compiled into a single Mono executable.
 
 ### 4. Run
 
@@ -119,7 +125,7 @@ Every new function exposed to C# requires changes in **three files**:
 
 1. **`native/renderer.h` + `native/renderer.cpp`** -- Add the method to the `VulkanRenderer` class and implement it.
 2. **`native/bridge.cpp`** -- Add an `extern "C"` wrapper that calls the new method on `g_renderer`, wrapped in a try/catch.
-3. **`managed/ecs/NativeBridge.cs`** -- Add a `[DllImport("renderer")]` static extern declaration matching the C function signature.
+3. **`managed/NativeBridge.cs`** -- Add a `[DllImport("renderer")]` static extern declaration matching the C function signature.
    :::
 
 :::tip Where to Edit -- Adding a New Shader
@@ -131,9 +137,10 @@ Every new function exposed to C# requires changes in **three files**:
    :::
 
 :::tip Where to Edit -- Adding a New C# File
+The project uses two folders for C# code:
 
-1. Create the `.cs` file under `managed/` (typically in `managed/ecs/`).
-2. Add its path to the `VIEWER_CS` variable in the `Makefile` so the compiler includes it.
+- **Engine files** (`managed/`) -- Add the path to `MANAGED_CS` in the Makefile. These are stable engine internals (World, Components, NativeBridge, etc.).
+- **Game files** (`game_logic/`) -- Add the path to `GAMELOGIC_CS_FILES` in the Makefile. These are user-editable game logic files and are hot-reloadable with `make dev`.
 
 The `.csproj` uses `EnableDefaultCompileItems` so it discovers new files automatically — no project file changes needed. Only the Makefile needs updating.
 :::

@@ -10,3 +10,6 @@ models/*.glb
 
 managed/bin/
 managed/obj/
+
+game_logic/bin/
+game_logic/obj/

@@ -1,31 +1,29 @@
 # Quick Start: Build Your First Scene
 
-This tutorial walks you through creating a scene with a 3D model, camera controls, and a light — all in under 50 lines of C#.
+This tutorial walks you through setting up a scene with a 3D model, camera controls, and a light in `game_logic/Game.cs`.
 
-## 1. Set Up the Renderer
+## How It Works
 
-Every app starts by initializing the Vulkan renderer with a window size and title:
+The engine handles the main loop and renderer initialization in `managed/Viewer.cs`. Your game code lives in `game_logic/Game.cs`, where the engine calls `Game.Setup(world)` to let you set up your scene and register systems.
+
+## 1. Open Game.cs
+
+Open `game_logic/Game.cs`. This is the entry point for all your game setup:
 
 ```csharp
 using System;
 using ECS;
 
-class MyApp
+public static class Game
 {
-    static void Main()
+    public static void Setup(World world)
     {
-        NativeBridge.renderer_init(800, 600, "My First Scene");
+        // Your scene setup goes here
+    }
+}
 ```
 
-## 2. Create the World
-
-The `World` is the container for all ECS state — entities, components, and systems:
-
-```csharp
-        var world = new World();
-```
-
-## 3. Load a Mesh and Spawn an Entity
+## 2. Load a Mesh and Spawn an Entity
 
 Load a glTF model, create an entity, and give it a transform, mesh, and movement controls:
 
@@ -41,7 +39,7 @@ Load a glTF model, create an entity, and give it a transform, mesh, and movement
         world.AddComponent(player, new Movable());
 ```
 
-## 4. Add a Camera
+## 3. Add a Camera
 
 Attach a `Camera` component to follow the player. The orbit camera lets you rotate around the entity with keyboard (Q/E/R/F) or mouse look (ESC to toggle cursor lock):
 
@@ -52,7 +50,7 @@ Attach a `Camera` component to follow the player. The orbit camera lets you rota
         });
 ```
 
-## 5. Add a Light
+## 4. Add a Light
 
 Create a directional light so the scene isn't dark:
 
@@ -66,7 +64,7 @@ Create a directional light so the scene isn't dark:
         });
 ```
 
-## 6. Register Systems and Run
+## 5. Register Systems
 
 Systems process entities each frame. Register them in order — input first, sync to GPU last:
 
@@ -75,34 +73,28 @@ Systems process entities each frame. Register them in order — input first, syn
         world.AddSystem(Systems.CameraFollowSystem);
         world.AddSystem(Systems.LightSyncSystem);
         world.AddSystem(Systems.RenderSyncSystem);
-
-        while (!NativeBridge.renderer_should_close())
-        {
-            NativeBridge.renderer_update_time();
-            NativeBridge.renderer_poll_events();
-            world.DeltaTime = NativeBridge.renderer_get_delta_time();
-            world.RunSystems();
-            NativeBridge.renderer_render_frame();
-        }
-
-        NativeBridge.renderer_cleanup();
-    }
-}
 ```
 
+## 6. Build and Run
+
+```bash
+make run
+```
+
+The engine handles the main loop, renderer init, and cleanup — you only need to define your scene in `Game.Setup`.
+
 ## Full Code
+
+Here's the complete `game_logic/Game.cs`:
 
 ```csharp
 using System;
 using ECS;
 
-class MyApp
+public static class Game
 {
-    static void Main()
+    public static void Setup(World world)
     {
-        NativeBridge.renderer_init(800, 600, "My First Scene");
-        var world = new World();
-
         // Load mesh and create player
         int meshId = NativeBridge.LoadMesh("models/Box.glb");
         int player = world.Spawn();
@@ -128,18 +120,6 @@ class MyApp
         world.AddSystem(Systems.CameraFollowSystem);
         world.AddSystem(Systems.LightSyncSystem);
         world.AddSystem(Systems.RenderSyncSystem);
-
-        // Main loop
-        while (!NativeBridge.renderer_should_close())
-        {
-            NativeBridge.renderer_update_time();
-            NativeBridge.renderer_poll_events();
-            world.DeltaTime = NativeBridge.renderer_get_delta_time();
-            world.RunSystems();
-            NativeBridge.renderer_render_frame();
-        }
-
-        NativeBridge.renderer_cleanup();
     }
 }
 ```

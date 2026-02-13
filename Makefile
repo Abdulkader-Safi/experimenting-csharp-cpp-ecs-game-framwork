@@ -12,7 +12,10 @@ EXE = $(BUILD_DIR)/Program.exe
 # Viewer config
 VIEWER_DYLIB = $(BUILD_DIR)/librenderer.dylib
 VIEWER_EXE = $(BUILD_DIR)/Viewer.exe
-VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs managed/ecs/Systems.cs managed/ecs/NativeBridge.cs managed/ecs/GameConstants.cs managed/ecs/FreeCameraState.cs
+MANAGED_CS = managed/Viewer.cs managed/World.cs managed/Components.cs \
+             managed/NativeBridge.cs managed/FreeCameraState.cs
+GAMELOGIC_CS_FILES = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
+VIEWER_CS = $(MANAGED_CS) $(GAMELOGIC_CS_FILES)
 SHADER_DIR = $(BUILD_DIR)/shaders
 VERT_SPV = $(SHADER_DIR)/vert.spv
 FRAG_SPV = $(SHADER_DIR)/frag.spv
@@ -71,6 +74,31 @@ run: viewer
 app: viewer
 	@./build-app.sh
 
+# --- Dev mode (hot reload) ---
+
+ENGINE_CS = managed/World.cs managed/Components.cs \
+            managed/NativeBridge.cs managed/FreeCameraState.cs
+ENGINE_DLL = $(BUILD_DIR)/Engine.dll
+
+GAMELOGIC_CS = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
+GAMELOGIC_DLL = $(BUILD_DIR)/GameLogic.dll
+
+VIEWERDEV_CS = managed/Viewer.cs managed/HotReload.cs
+VIEWERDEV_EXE = $(BUILD_DIR)/ViewerDev.exe
+
+$(ENGINE_DLL): $(ENGINE_CS) | $(BUILD_DIR)
+	$(MCS) -target:library -out:$@ $(ENGINE_CS)
+
+$(GAMELOGIC_DLL): $(GAMELOGIC_CS) $(ENGINE_DLL) | $(BUILD_DIR)
+	$(MCS) -target:library -r:$(ENGINE_DLL) -out:$@ $(GAMELOGIC_CS)
+
+$(VIEWERDEV_EXE): $(VIEWERDEV_CS) $(ENGINE_DLL) $(GAMELOGIC_DLL) | $(BUILD_DIR)
+	$(MCS) -define:HOT_RELOAD -r:$(ENGINE_DLL) -r:$(GAMELOGIC_DLL) -out:$@ $(VIEWERDEV_CS)
+
+dev: shaders $(VIEWER_DYLIB) $(ENGINE_DLL) $(GAMELOGIC_DLL) $(VIEWERDEV_EXE)
+	DYLD_LIBRARY_PATH=$(BUILD_DIR):/opt/homebrew/lib VK_ICD_FILENAMES=$(VK_ICD) \
+		MONO_PATH=$(BUILD_DIR) mono $(VIEWERDEV_EXE)
+
 # --- Shared ---
 
 clean:
@@ -83,9 +111,10 @@ help:
 	@echo "  all          Build native .dylib and C# .exe (default)"
 	@echo "  run          Build and run the viewer with a sample model"
 	@echo "  viewer       Build Vulkan glTF viewer (shaders + native lib + C# exe)"
+	@echo "  dev          Build and run with hot reload (edit C# game logic live)"
 	@echo "  app          Build macOS .app bundle (requires Mono installed)"
 	@echo "  shaders      Compile GLSL shaders to SPIR-V"
 	@echo "  clean        Remove build artifacts"
 	@echo "  help         Show this help message"
 
-.PHONY: all run clean help shaders viewer app
+.PHONY: all run clean help shaders viewer app dev

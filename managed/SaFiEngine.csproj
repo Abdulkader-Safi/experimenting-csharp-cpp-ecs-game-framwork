@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>SaFiEngine</RootNamespace>
-    <!-- Prevent dotnet build from conflicting with Makefile build -->
-    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <RootNamespace>ECS</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="World.cs" />
+    <Compile Include="Components.cs" />
+    <Compile Include="NativeBridge.cs" />
+    <Compile Include="FreeCameraState.cs" />
+    <Compile Include="HotReload.cs" />
+  </ItemGroup>
 </Project>

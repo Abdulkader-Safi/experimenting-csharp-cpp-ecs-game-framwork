@@ -1,6 +1,6 @@
 # NativeBridge Reference
 
-`NativeBridge` (`managed/ecs/NativeBridge.cs`) provides all P/Invoke bindings to the C++ Vulkan renderer.
+`NativeBridge` (`managed/NativeBridge.cs`) provides all P/Invoke bindings to the C++ Vulkan renderer.
 
 ## Renderer Lifecycle
 

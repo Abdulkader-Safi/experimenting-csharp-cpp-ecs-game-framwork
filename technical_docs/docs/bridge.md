@@ -112,5 +112,5 @@ The C# side provides both raw `[DllImport]` declarations and convenience wrapper
 1. **`native/renderer.h`** — Declare the method on `VulkanRenderer` (public section)
 2. **`native/renderer.cpp`** — Implement the method
 3. **`native/bridge.cpp`** — Add `extern "C"` wrapper calling `g_renderer.method()`. Use try/catch if it can throw.
-4. **`managed/ecs/NativeBridge.cs`** — Add `[DllImport(LIB)]` declaration + optional convenience wrapper
+4. **`managed/NativeBridge.cs`** — Add `[DllImport(LIB)]` declaration + optional convenience wrapper
    :::

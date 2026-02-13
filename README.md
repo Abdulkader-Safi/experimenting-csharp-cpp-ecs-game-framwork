@@ -19,6 +19,7 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - **Timers** — Countdown and interval timers for cooldowns, spawning, and delays
 - **Delta Time** — Frame-independent movement via native-side GLFW timing
 - **Runtime Spawn/Despawn** — Create and destroy entities at runtime with automatic native resource cleanup
+- **Hot Reload** — `make dev` watches `game_logic/` and live-reloads systems on save without restarting
 - **macOS App Bundle** — Packageable as a standalone `.app` with embedded runtime and assets
 
 ## Quick Start
@@ -73,10 +74,10 @@ This compiles GLSL shaders to SPIR-V, builds the C++ shared library via CMake, c
 ## Architecture
 
 ```
-C# ECS (managed/ecs/)              C++ VulkanRenderer (native/)
-  World — entities, components        Vulkan instance, swapchain, pipeline
-  Systems — per-frame logic           Vertex/index buffers, push constants
-  NativeBridge.cs                     UBOs for view/proj + lighting
+C# Engine (managed/)               C++ VulkanRenderer (native/)
+  World, Components, NativeBridge     Vulkan instance, swapchain, pipeline
+C# Game (game_logic/)                 Vertex/index buffers, push constants
+  Game.cs, Systems.cs                 UBOs for view/proj + lighting
        └──── P/Invoke (DllImport) ────→ bridge.cpp (extern "C")
 ```
 
@@ -85,10 +86,10 @@ The C# side owns the game loop and all ECS logic. Each frame it queries entities
 ### ECS Pattern
 
 - **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`
-- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `RenderSyncSystem`
+- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `TimerSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `RenderSyncSystem`
 - **World** — Manages entity lifecycles, component storage, system registration, and delta time
 
-System execution order matters — `RenderSyncSystem` must always run last.
+System execution order matters — `RenderSyncSystem` must always run last. Systems are registered in `game_logic/Game.cs`.
 
 ### Adding a New Native Function
 
@@ -96,9 +97,9 @@ Changes are required in three places:
 
 1. `native/bridge.cpp` — `extern "C"` wrapper
 2. `native/renderer.h` + `renderer.cpp` — Implementation on the `VulkanRenderer` class
-3. `managed/ecs/NativeBridge.cs` — `[DllImport("renderer")]` declaration
+3. `managed/NativeBridge.cs` — `[DllImport("renderer")]` declaration
 
-Any new C# file must be added to the `VIEWER_CS` list in the Makefile.
+New engine C# files go in `managed/` (add to `MANAGED_CS` in the Makefile). New game C# files go in `game_logic/` (add to `GAMELOGIC_CS_FILES` in the Makefile).
 
 ### IDE Setup
 
@@ -109,6 +110,7 @@ The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# Intell
 | Target         | Description                            |
 | -------------- | -------------------------------------- |
 | `make run`     | Build everything and run the viewer    |
+| `make dev`     | Build and run with hot reload          |
 | `make viewer`  | Build shaders + native lib + C# exe    |
 | `make app`     | Build macOS `.app` bundle              |
 | `make shaders` | Compile GLSL → SPIR-V only             |
@@ -135,17 +137,20 @@ The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# Intell
 │   │   └── ui.frag                  # UI fragment shader (font atlas sampling)
 │   └── vendor/
 │       ├── cgltf.h                  # glTF 2.0 parsing library
-│       └── stb_truetype.h           # Font rasterization library
-├── managed/
+│       ├── stb_truetype.h           # Font rasterization library
+│       └── stb_image.h             # Image decoding library
+├── managed/                         # ENGINE (stable, user doesn't edit)
 │   ├── SaFiEngine.csproj           # Project file (IDE IntelliSense only, not used by build)
-│   ├── Viewer.cs                    # Entry point — spawns entities, runs game loop
-│   └── ecs/
-│       ├── World.cs                 # ECS world: entities, components, systems
-│       ├── Components.cs            # Transform, MeshComponent, Movable, Light, Camera
-│       ├── Systems.cs               # Input, camera, lighting, render sync systems
-│       ├── NativeBridge.cs          # P/Invoke bindings to C++ renderer
-│       ├── FreeCameraState.cs       # Static state for the debug free camera
-│       └── GameConstants.cs         # Tunable config values (debug, sensitivity, speed)
+│   ├── Viewer.cs                    # Entry point — calls Game.Setup(), runs game loop
+│   ├── World.cs                     # ECS world: entities, components, systems
+│   ├── Components.cs                # Transform, MeshComponent, Movable, Light, Camera
+│   ├── NativeBridge.cs              # P/Invoke bindings to C++ renderer
+│   ├── FreeCameraState.cs           # Static state for the debug free camera
+│   └── HotReload.cs                 # File watcher + recompiler (dev mode)
+├── game_logic/                      # GAME CODE (user edits these)
+│   ├── Game.cs                      # Scene setup + system registration
+│   ├── Systems.cs                   # Per-frame system logic
+│   └── GameConstants.cs             # Tunable config values (debug, sensitivity, speed)
 ├── assets/
 │   └── fonts/
 │       └── RobotoMono-Regular.ttf   # Monospace font for debug overlay

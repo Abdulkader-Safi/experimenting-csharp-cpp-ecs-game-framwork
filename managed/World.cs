@@ -3,12 +3,18 @@ using System.Collections.Generic;
 
 namespace ECS
 {
+    internal class NamedSystem
+    {
+        public string Name;
+        public Action<World> Action;
+    }
+
     public class World
     {
         private int nextEntityId_ = 0;
         private readonly HashSet<int> aliveEntities_ = new HashSet<int>();
         private readonly Dictionary<string, Dictionary<int, object>> components_ = new Dictionary<string, Dictionary<int, object>>();
-        private readonly List<Action<World>> systems_ = new List<Action<World>>();
+        private readonly List<NamedSystem> systems_ = new List<NamedSystem>();
 
         // Time tracking (computed on native side via glfwGetTime)
         public float DeltaTime { get; private set; } = 0.016f;
@@ -121,7 +127,7 @@ namespace ECS
 
         public void AddSystem(Action<World> system)
         {
-            systems_.Add(system);
+            systems_.Add(new NamedSystem { Name = system.Method.Name, Action = system });
         }
 
         public void UpdateTime()
@@ -133,10 +139,25 @@ namespace ECS
 
         public void RunSystems()
         {
-            foreach (var system in systems_)
+            foreach (var sys in systems_)
             {
-                system(this);
+                sys.Action(this);
             }
+        }
+
+        public int ReloadSystems(Dictionary<string, Action<World>> newMethods)
+        {
+            int swapped = 0;
+            for (int i = 0; i < systems_.Count; i++)
+            {
+                Action<World> replacement;
+                if (newMethods.TryGetValue(systems_[i].Name, out replacement))
+                {
+                    systems_[i].Action = replacement;
+                    swapped++;
+                }
+            }
+            return swapped;
         }
     }
 }

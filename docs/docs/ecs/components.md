@@ -1,6 +1,6 @@
 # Components
 
-A component is any C# class that holds data, not behavior. Components must be reference types (classes, not structs). All built-in components live in `managed/ecs/Components.cs`.
+A component is any C# class that holds data, not behavior. Components must be reference types (classes, not structs). All built-in components live in `managed/Components.cs`.
 
 ## Built-in Components
 

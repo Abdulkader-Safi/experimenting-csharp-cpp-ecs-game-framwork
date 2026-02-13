@@ -6,12 +6,13 @@
 | -------------- | -------------------------------------------------------------- |
 | `make viewer`  | Build shaders + C++ dylib + C# exe                             |
 | `make run`     | Build everything and run the viewer                            |
+| `make dev`     | Build and run with hot reload (edit game logic live)           |
 | `make app`     | Build macOS .app bundle                                        |
 | `make shaders` | Compile GLSL shaders to SPIR-V only                            |
 | `make all`     | Build hello demo (basic P/Invoke test)                         |
 | `make clean`   | Remove all build artifacts (`build/`, `compile_commands.json`) |
 
-`make run` is the primary development command.
+`make run` is the primary development command. `make dev` enables hot reload for game logic.
 
 ## Shader Compilation
 
@@ -88,20 +89,52 @@ All three `#define` directives are at the top of `renderer.cpp`.
 
 ## C# Compilation
 
+The Makefile uses two separate file lists — engine code and game logic — combined into `VIEWER_CS`:
+
 ```makefile
-VIEWER_CS = managed/Viewer.cs managed/ecs/World.cs managed/ecs/Components.cs \
-            managed/ecs/Systems.cs managed/ecs/NativeBridge.cs \
-            managed/ecs/GameConstants.cs managed/ecs/FreeCameraState.cs
+MANAGED_CS = managed/Viewer.cs managed/World.cs managed/Components.cs \
+             managed/NativeBridge.cs managed/FreeCameraState.cs
+GAMELOGIC_CS_FILES = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
+VIEWER_CS = $(MANAGED_CS) $(GAMELOGIC_CS_FILES)
 
 $(VIEWER_EXE): $(VIEWER_CS)
     mcs -out:$@ $(VIEWER_CS)
 ```
 
-Uses the Mono C# compiler (`mcs`). All source files are listed explicitly in `VIEWER_CS` — there is no automatic file discovery.
+Uses the Mono C# compiler (`mcs`). All source files are listed explicitly in `MANAGED_CS` (engine) and `GAMELOGIC_CS_FILES` (game logic) — there is no automatic file discovery.
 
 :::info IDE IntelliSense
 The repo includes `SaFiEngine.sln` (repo root) and `managed/SaFiEngine.csproj` for C# language server support (autocomplete, go-to-definition, error checking). These files are **not used by the build** — the Makefile drives compilation via `mcs`. After cloning, run `dotnet restore` once to generate `managed/obj/project.assets.json`, which the language server needs to resolve `System.*` types.
 :::
+
+## Dev Mode (Hot Reload)
+
+`make dev` splits C# into three assemblies for live code reloading:
+
+```makefile
+# Engine (stable) — World, Components, NativeBridge, FreeCameraState
+ENGINE_CS = managed/World.cs managed/Components.cs \
+            managed/NativeBridge.cs managed/FreeCameraState.cs
+ENGINE_DLL = $(BUILD_DIR)/Engine.dll
+
+# Game logic (hot-reloadable) — Game.cs, Systems.cs, GameConstants.cs
+GAMELOGIC_CS = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
+GAMELOGIC_DLL = $(BUILD_DIR)/GameLogic.dll
+
+# Viewer with hot reload support
+VIEWERDEV_CS = managed/Viewer.cs managed/HotReload.cs
+VIEWERDEV_EXE = $(BUILD_DIR)/ViewerDev.exe
+```
+
+| Assembly         | Contents                                           | Reloadable? |
+| ---------------- | -------------------------------------------------- | ----------- |
+| `Engine.dll`     | World, Components, NativeBridge, FreeCameraState    | No          |
+| `GameLogic.dll`  | Game.cs, Systems.cs, GameConstants.cs               | Yes         |
+| `ViewerDev.exe`  | Viewer.cs + HotReload.cs (compiled with `-define:HOT_RELOAD`) | No |
+
+A `FileSystemWatcher` in `HotReload.cs` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, loads the new assembly via reflection, and swaps system delegates by name. Game state survives because it lives in `Engine.dll`.
+
+`make run` and `make app` are unaffected — they compile everything into a single `Viewer.exe` with no hot reload code (`#if HOT_RELOAD` guards).
 
 ## Runtime Environment
 
@@ -122,5 +155,5 @@ VK_ICD_FILENAMES=/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json \
 
 **Adding a new C++ source file**: Add it to `add_library(renderer SHARED ...)` in `native/CMakeLists.txt`. CMake will pick it up on next build.
 
-**Adding a new C# file**: Add the file path to the `VIEWER_CS` variable in the `Makefile`. The `.csproj` discovers files automatically, so no project file update is needed.
+**Adding a new C# file**: Engine files go in `managed/` — add the path to `MANAGED_CS` in the Makefile. Game files go in `game_logic/` — add the path to `GAMELOGIC_CS_FILES`. Game files in `game_logic/` are automatically hot-reloadable with `make dev`. The `.csproj` discovers files automatically, so no project file update is needed.
 :::

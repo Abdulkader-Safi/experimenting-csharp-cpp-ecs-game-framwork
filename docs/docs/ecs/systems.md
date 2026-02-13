@@ -4,7 +4,7 @@ A system is a static method with the signature `void SystemName(World world)`. I
 
 ## Built-in Systems
 
-All built-in systems live in `managed/ecs/Systems.cs`.
+All built-in systems live in `game_logic/Systems.cs`.
 
 ### InputMovementSystem
 
@@ -86,9 +86,10 @@ Pushes transform matrices to the C++ renderer for each entity with a mesh. Uses 
 
 ## Registration Order
 
-Systems run in the order they are added. **Order matters.**
+Systems run in the order they are added. **Order matters.** Systems are registered in `game_logic/Game.cs` inside the `Game.Setup(world)` method:
 
 ```csharp
+// game_logic/Game.cs — inside Game.Setup(world)
 world.AddSystem(Systems.InputMovementSystem);        // runs first
 world.AddSystem(Systems.TimerSystem);                 // tick timers
 world.AddSystem(Systems.FreeCameraSystem);            // debug fly camera (before CameraFollow)
@@ -129,9 +130,10 @@ public static void DespawnDeadSystem(World world)
 }
 ```
 
-Register them before `RenderSyncSystem`:
+Register them in `game_logic/Game.cs` before `RenderSyncSystem`:
 
 ```csharp
+// game_logic/Game.cs — inside Game.Setup(world)
 world.AddSystem(GravitySystem);
 world.AddSystem(DespawnDeadSystem);
 world.AddSystem(Systems.InputMovementSystem);
