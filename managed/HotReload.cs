@@ -141,11 +141,35 @@ namespace ECS
                 }
             }
 
-            int swapped = world.ReloadSystems(newMethods);
+            // Check if the new assembly has a Game.Setup method
+            Type gameType = asm.GetType("Game");
+            MethodInfo setupMethod = null;
+            if (gameType != null)
+            {
+                setupMethod = gameType.GetMethod("Setup",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null, new Type[] { typeof(World) }, null);
+            }
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("[HotReload] OK v" + version_ + " - " +
-                              swapped + " systems reloaded");
+            if (setupMethod != null)
+            {
+                // Full scene re-init: reset world and re-run Game.Setup
+                world.Reset();
+                setupMethod.Invoke(null, new object[] { world });
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[HotReload] OK v" + version_ +
+                                  " - Scene re-initialized");
+            }
+            else
+            {
+                // Systems-only swap (no Game class found)
+                int swapped = world.ReloadSystems(newMethods);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("[HotReload] OK v" + version_ + " - " +
+                                  swapped + " systems reloaded");
+            }
             Console.ResetColor();
         }
 

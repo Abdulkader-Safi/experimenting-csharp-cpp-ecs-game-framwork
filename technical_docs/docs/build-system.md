@@ -126,13 +126,16 @@ VIEWERDEV_CS = managed/Viewer.cs managed/HotReload.cs
 VIEWERDEV_EXE = $(BUILD_DIR)/ViewerDev.exe
 ```
 
-| Assembly         | Contents                                           | Reloadable? |
-| ---------------- | -------------------------------------------------- | ----------- |
-| `Engine.dll`     | World, Components, NativeBridge, FreeCameraState    | No          |
-| `GameLogic.dll`  | Game.cs, Systems.cs, GameConstants.cs               | Yes         |
-| `ViewerDev.exe`  | Viewer.cs + HotReload.cs (compiled with `-define:HOT_RELOAD`) | No |
+| Assembly        | Contents                                                      | Reloadable? |
+| --------------- | ------------------------------------------------------------- | ----------- |
+| `Engine.dll`    | World, Components, NativeBridge, FreeCameraState              | No          |
+| `GameLogic.dll` | Game.cs, Systems.cs, GameConstants.cs                         | Yes         |
+| `ViewerDev.exe` | Viewer.cs + HotReload.cs (compiled with `-define:HOT_RELOAD`) | No          |
 
-A `FileSystemWatcher` in `HotReload.cs` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, loads the new assembly via reflection, and swaps system delegates by name. Game state survives because it lives in `Engine.dll`.
+A `FileSystemWatcher` in `HotReload.cs` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, and loads the new assembly via reflection. The reload then looks for a `Game.Setup(World)` method in the new assembly:
+
+- **If found** — calls `world.Reset()` (despawns all entities, clears component stores, clears systems, clears all 8 light slots on the native side, resets entity IDs) then re-invokes `Game.Setup(world)` from the new assembly. This makes scene changes (new entities, lights, system registration order) take effect immediately.
+- **If not found** — falls back to swapping system delegates by name (systems-only reload).
 
 `make run` and `make app` are unaffected — they compile everything into a single `Viewer.exe` with no hot reload code (`#if HOT_RELOAD` guards).
 

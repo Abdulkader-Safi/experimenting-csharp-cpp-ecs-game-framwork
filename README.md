@@ -19,7 +19,7 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - **Timers** — Countdown and interval timers for cooldowns, spawning, and delays
 - **Delta Time** — Frame-independent movement via native-side GLFW timing
 - **Runtime Spawn/Despawn** — Create and destroy entities at runtime with automatic native resource cleanup
-- **Hot Reload** — `make dev` watches `game_logic/` and live-reloads systems on save without restarting
+- **Hot Reload** — `make dev` watches `game_logic/` and live-reloads on save without restarting. Editing any file re-runs `Game.Setup`, so scene changes (new entities, lights, system registration) take effect immediately
 - **macOS App Bundle** — Packageable as a standalone `.app` with embedded runtime and assets
 
 ## Quick Start

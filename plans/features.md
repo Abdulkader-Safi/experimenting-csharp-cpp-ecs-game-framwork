@@ -25,6 +25,7 @@
 | Text rendering (stb_truetype font atlas, R8 texture)          | Done   |
 | Debug overlay (FPS, delta time, entity count, F3 toggle)      | Done   |
 | Textures & UV mapping (glTF base color texture, stb_image)    | Done   |
+| Hot reload (game logic live-reload with scene re-init)        | Done   |
 
 --https://bevy.org/-
 
@@ -103,7 +104,8 @@
 ### 10. Asset Management
 
 - [ ] **Asset manager** — Central registry to avoid double-loading meshes/textures/sounds
-- [ ] **Hot reloading** — Detect file changes and reload assets at runtime
+- [ ] **Hot reloading (assets)** — Detect file changes and reload meshes, textures, and shaders at runtime
+- [x] **Hot reloading (game logic)** — `make dev` watches `game_logic/` and live-reloads on save, re-running `Game.Setup` for full scene re-initialization
 - [ ] **Async loading** — Load assets without blocking the main loop
 
 ### 11. Time & Delta Time
@@ -168,5 +170,6 @@
 25. Pathfinding / AI state machines
 26. Scene save/load
 27. Instanced rendering
-28. Hot reloading
-29. Cross-platform builds
+28. ~~Hot reloading (game logic)~~ ✓
+29. Hot reloading (assets)
+30. Cross-platform builds

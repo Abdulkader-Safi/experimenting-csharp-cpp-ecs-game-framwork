@@ -1,10 +1,10 @@
-# Hot Reloading
+# Hot Reloading (Assets)
 
 :::info Planned
-This feature is not yet implemented.
+Asset hot reloading is not yet implemented. Game logic hot reloading is available now via `make dev` — see [Hot Reload](/features/hot-reload).
 :::
 
-Detect file changes and reload assets at runtime.
+Detect file changes and reload assets (meshes, textures, shaders) at runtime.
 
 ## Planned Scope
 

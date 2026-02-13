@@ -112,14 +112,18 @@ InputMovement → Timer → FreeCamera → CameraFollow → LightSync → Hierar
 - **GameLogic.dll** (hot-reloadable) — all `game_logic/*.cs` files (Game.cs, Systems.cs, GameConstants.cs)
 - **ViewerDev.exe** — Viewer + HotReload, compiled with `-define:HOT_RELOAD`
 
-A single `FileSystemWatcher` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, loads the new assembly via reflection, and swaps system delegates by name. Game state survives because it lives in Engine.dll.
+A single `FileSystemWatcher` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, and loads the new assembly via reflection. The reload uses `Game.Setup` for full scene re-initialization:
+
+1. `world.Reset()` — despawns all entities (with native renderer cleanup), clears component stores, clears systems, clears all 8 light slots, resets entity IDs
+2. `Game.Setup(world)` is re-invoked from the new assembly, rebuilding the entire scene
+
+This means **any** `game_logic/` change takes effect immediately: new entities, changed lights, updated constants, modified system logic, re-ordered system registration.
 
 `make run` and `make app` are completely unaffected — they compile everything into a single `Viewer.exe` with no hot reload code (`#if HOT_RELOAD` guards).
 
 **Limitations:**
 
 - Only `game_logic/` files are hot-reloadable. Engine changes (`managed/`) require restart.
-- New system methods compile but won't execute until registered in Game.cs (restart needed for new systems).
 - Old assemblies leak memory (Mono can't unload). Restart after many reloads.
 - Static fields in Systems.cs (e.g., `wasF3Pressed_`) and GameConstants values reset on reload.
 

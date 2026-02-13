@@ -145,6 +145,26 @@ namespace ECS
             }
         }
 
+        public void Reset()
+        {
+            // Despawn all entities (cleans up native renderer entities via MeshComponent)
+            var ids = new List<int>(aliveEntities_);
+            foreach (int id in ids)
+            {
+                Despawn(id);
+            }
+
+            // Clear all component stores and systems
+            components_.Clear();
+            systems_.Clear();
+
+            // Clear all 8 light slots on the native side
+            for (int i = 0; i < 8; i++)
+                NativeBridge.ClearLight(i);
+
+            nextEntityId_ = 0;
+        }
+
         public int ReloadSystems(Dictionary<string, Action<World>> newMethods)
         {
             int swapped = 0;

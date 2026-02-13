@@ -104,3 +104,12 @@ public static class Game
     }
 }
 ```
+
+## Hot Reload (Dev Mode)
+
+`make dev` watches `game_logic/` for `.cs` changes and live-reloads without restarting. On save, the engine recompiles all game logic files, resets the world (despawns all entities, clears lights), and re-runs `Game.Setup(world)` from the new assembly. This means any change to `Game.cs`, `Systems.cs`, or `GameConstants.cs` takes effect immediately — including new entities, changed lights, updated constants, and re-ordered systems.
+
+Limitations:
+- Only `game_logic/` files are hot-reloadable. Engine changes (`managed/`) require a restart.
+- Old assemblies leak memory (Mono can't unload). Restart after many reloads.
+- Static fields in `Systems.cs` and `GameConstants.cs` values reset on each reload.

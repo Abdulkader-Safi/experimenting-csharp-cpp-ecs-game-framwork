@@ -48,7 +48,7 @@ public static class Game
         world.AddComponent(sun, new Transform());
         world.AddComponent(sun, new Light
         {
-            Type = Light.Point,
+            Type = Light.Directional,
             DirX = 1f,
             DirY = 1f,
             DirZ = 1f,

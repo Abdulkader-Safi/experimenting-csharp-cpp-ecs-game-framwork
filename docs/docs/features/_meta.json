@@ -6,5 +6,6 @@
   "camera",
   "input",
   "time",
-  "debug-overlay"
+  "debug-overlay",
+  "hot-reload"
 ]
