@@ -13,3 +13,5 @@ managed/obj/
 
 game_logic/bin/
 game_logic/obj/
+
+native/joltc/out/

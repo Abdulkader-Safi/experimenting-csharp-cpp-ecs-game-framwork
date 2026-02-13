@@ -7,6 +7,9 @@ public static class Game
 
     public static void Setup(World world)
     {
+        // Initialize physics (idempotent)
+        PhysicsWorld.Instance.Init();
+
         // Load mesh
         int meshId = NativeBridge.LoadMesh(ModelPath);
         if (meshId < 0)
@@ -109,9 +112,44 @@ public static class Game
             RendererEntityId = NativeBridge.CreateEntity(capMesh)
         });
 
+        // --- Physics demo entities ---
+
+        // Physics ground plane (static)
+        int physGround = world.Spawn();
+        world.AddComponent(physGround, new Transform { Y = -1f });
+        world.AddComponent(physGround, new Rigidbody { MotionType = JPH_MotionType.Static, Friction = 0.8f });
+        world.AddComponent(physGround, new Collider { ShapeType = Collider.Plane, PlaneHalfExtent = 100f });
+
+        // Dynamic red box - falls from height
+        int physBoxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, 0.9f, 0.2f, 0.2f);
+        int physBox = world.Spawn();
+        world.AddComponent(physBox, new Transform { X = 0f, Y = 5f, Z = -5f });
+        world.AddComponent(physBox, new MeshComponent
+        {
+            MeshId = physBoxMesh,
+            RendererEntityId = NativeBridge.CreateEntity(physBoxMesh)
+        });
+        world.AddComponent(physBox, new Rigidbody { Friction = 0.5f, Restitution = 0.3f });
+        world.AddComponent(physBox, new Collider { ShapeType = Collider.Box, BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f });
+
+        // Dynamic green sphere - bounces
+        int physSphereMesh = NativeBridge.CreateSphereMesh(0.5f, 32, 16, 0.2f, 0.9f, 0.2f);
+        int physSphere = world.Spawn();
+        world.AddComponent(physSphere, new Transform { X = 2f, Y = 8f, Z = -5f });
+        world.AddComponent(physSphere, new MeshComponent
+        {
+            MeshId = physSphereMesh,
+            RendererEntityId = NativeBridge.CreateEntity(physSphereMesh)
+        });
+        world.AddComponent(physSphere, new Rigidbody { Friction = 0.3f, Restitution = 0.7f });
+        world.AddComponent(physSphere, new Collider { ShapeType = Collider.Sphere, SphereRadius = 0.5f });
+
+        PhysicsWorld.Instance.OptimizeBroadPhase();
+
         // Register systems (order matters - RenderSync always last)
         world.AddSystem(Systems.InputMovementSystem);
         world.AddSystem(Systems.TimerSystem);
+        world.AddSystem(Systems.PhysicsSystem);
         world.AddSystem(Systems.FreeCameraSystem);
         world.AddSystem(Systems.CameraFollowSystem);
         world.AddSystem(Systems.LightSyncSystem);

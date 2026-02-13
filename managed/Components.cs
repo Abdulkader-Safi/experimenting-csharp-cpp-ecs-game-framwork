@@ -105,6 +105,37 @@ namespace ECS
         public string Tag = "";
     }
 
+    public class Rigidbody
+    {
+        public uint BodyId = 0;
+        public bool BodyCreated = false;
+        public JPH_MotionType MotionType = JPH_MotionType.Dynamic;
+        public float Friction = 0.5f;
+        public float Restitution = 0.3f;
+        public float LinearDamping = 0.05f;
+        public float AngularDamping = 0.05f;
+        public float GravityFactor = 1.0f;
+    }
+
+    public class Collider
+    {
+        public const int Box = 0, Sphere = 1, Capsule = 2, Cylinder = 3, Plane = 4;
+        public int ShapeType = Box;
+
+        // Box
+        public float BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f;
+        // Sphere
+        public float SphereRadius = 0.5f;
+        // Capsule
+        public float CapsuleHalfHeight = 0.5f, CapsuleRadius = 0.3f;
+        // Cylinder
+        public float CylinderHalfHeight = 0.5f, CylinderRadius = 0.5f;
+        // Plane
+        public float PlaneNormalX = 0f, PlaneNormalY = 1f, PlaneNormalZ = 0f;
+        public float PlaneDistance = 0f;
+        public float PlaneHalfExtent = 100f;
+    }
+
     public class Camera
     {
         public float OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f;

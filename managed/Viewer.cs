@@ -32,6 +32,7 @@ class Viewer
 #if HOT_RELOAD
         HotReload.Stop();
 #endif
+        PhysicsWorld.Instance.Shutdown();
         NativeBridge.renderer_cleanup();
     }
 }

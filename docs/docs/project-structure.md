@@ -9,8 +9,10 @@ managed/                        ← ENGINE (stable, user doesn't edit)
   SaFiEngine.csproj               .NET project file (IDE IntelliSense only, not used by build)
   Viewer.cs                       Entry point (Main), main loop
   World.cs                        ECS world: entities, components, systems, queries
-  Components.cs                   Built-in: Transform, MeshComponent, Movable, Camera, Light
-  NativeBridge.cs                 All P/Invoke declarations + convenience wrappers
+  Components.cs                   Built-in: Transform, MeshComponent, Movable, Camera, Light, Rigidbody, Collider
+  NativeBridge.cs                 P/Invoke declarations for C++ renderer
+  PhysicsBridge.cs                P/Invoke declarations for joltc physics library
+  PhysicsWorld.cs                 Jolt Physics lifecycle, body tracking, fixed timestep
   FreeCameraState.cs              Static state for the debug free camera
   HotReload.cs                    File watcher + recompiler (dev mode only)
 
@@ -20,6 +22,7 @@ game_logic/                     ← GAME CODE (user edits these)
   GameConstants.cs                Tunable config values (debug, sensitivity, speed)
 
 native/
+  joltc/                          Jolt Physics C API (git submodule)
   renderer.h                      VulkanRenderer class declaration
   renderer.cpp                    Vulkan rendering + multi-entity API
   bridge.cpp                      extern "C" bridge functions
@@ -50,7 +53,8 @@ The Makefile uses two separate file lists — one for engine code, one for game 
 
 ```makefile
 MANAGED_CS = managed/Viewer.cs managed/World.cs managed/Components.cs \
-             managed/NativeBridge.cs managed/FreeCameraState.cs
+             managed/NativeBridge.cs managed/FreeCameraState.cs \
+             managed/PhysicsBridge.cs managed/PhysicsWorld.cs
 GAMELOGIC_CS_FILES = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
 VIEWER_CS = $(MANAGED_CS) $(GAMELOGIC_CS_FILES)
 ```

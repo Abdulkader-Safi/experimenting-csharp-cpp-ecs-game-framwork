@@ -392,6 +392,95 @@ namespace ECS
             NativeBridge.SetDebugOverlay(GameConstants.Debug);
         }
 
+        public static void PhysicsSystem(World world)
+        {
+            // Phase 1: Create bodies for new Rigidbody+Collider+Transform entities
+            List<int> physEntities = world.Query(typeof(Rigidbody), typeof(Collider), typeof(Transform));
+            foreach (int e in physEntities)
+            {
+                var rb = world.GetComponent<Rigidbody>(e);
+                if (rb.BodyCreated) continue;
+
+                var col = world.GetComponent<Collider>(e);
+                var tr = world.GetComponent<Transform>(e);
+
+                IntPtr shape = CreateShape(col);
+                if (shape == IntPtr.Zero) continue;
+
+                rb.BodyId = PhysicsWorld.Instance.CreateBody(
+                    e, shape, tr.X, tr.Y, tr.Z,
+                    JPH_Quat.Identity, rb.MotionType,
+                    rb.Friction, rb.Restitution, rb.LinearDamping,
+                    rb.AngularDamping, rb.GravityFactor);
+                rb.BodyCreated = true;
+            }
+
+            // Phase 2: Step physics simulation
+            PhysicsWorld.Instance.Step(world.DeltaTime);
+
+            // Phase 3: Sync transforms back from Jolt for dynamic bodies
+            foreach (int e in physEntities)
+            {
+                var rb = world.GetComponent<Rigidbody>(e);
+                if (!rb.BodyCreated || rb.MotionType == JPH_MotionType.Static) continue;
+                if (!PhysicsWorld.Instance.IsBodyActive(rb.BodyId)) continue;
+
+                var tr = world.GetComponent<Transform>(e);
+
+                float px, py, pz;
+                PhysicsWorld.Instance.GetBodyPosition(rb.BodyId, out px, out py, out pz);
+                tr.X = px;
+                tr.Y = py;
+                tr.Z = pz;
+
+                JPH_Quat rot;
+                PhysicsWorld.Instance.GetBodyRotation(rb.BodyId, out rot);
+                QuatToEulerDeg(rot, out tr.RotX, out tr.RotY, out tr.RotZ);
+            }
+        }
+
+        private static IntPtr CreateShape(Collider col)
+        {
+            switch (col.ShapeType)
+            {
+                case Collider.Box:
+                    var halfExt = new JPH_Vec3(col.BoxHalfX, col.BoxHalfY, col.BoxHalfZ);
+                    return PhysicsBridge.JPH_BoxShape_Create(ref halfExt, 0.05f);
+                case Collider.Sphere:
+                    return PhysicsBridge.JPH_SphereShape_Create(col.SphereRadius);
+                case Collider.Capsule:
+                    return PhysicsBridge.JPH_CapsuleShape_Create(col.CapsuleHalfHeight, col.CapsuleRadius);
+                case Collider.Cylinder:
+                    return PhysicsBridge.JPH_CylinderShape_Create(col.CylinderHalfHeight, col.CylinderRadius);
+                case Collider.Plane:
+                    var normal = new JPH_Vec3(col.PlaneNormalX, col.PlaneNormalY, col.PlaneNormalZ);
+                    var plane = new JPH_Plane(normal, col.PlaneDistance);
+                    return PhysicsBridge.JPH_PlaneShape_Create(ref plane, IntPtr.Zero, col.PlaneHalfExtent);
+                default:
+                    return IntPtr.Zero;
+            }
+        }
+
+        private static void QuatToEulerDeg(JPH_Quat q, out float rx, out float ry, out float rz)
+        {
+            // Roll (X)
+            double sinr = 2.0 * (q.w * q.x + q.y * q.z);
+            double cosr = 1.0 - 2.0 * (q.x * q.x + q.y * q.y);
+            rx = (float)(Math.Atan2(sinr, cosr) * 180.0 / Math.PI);
+
+            // Pitch (Y)
+            double sinp = 2.0 * (q.w * q.y - q.z * q.x);
+            if (Math.Abs(sinp) >= 1.0)
+                ry = (float)(Math.Sign(sinp) * 90.0);
+            else
+                ry = (float)(Math.Asin(sinp) * 180.0 / Math.PI);
+
+            // Yaw (Z)
+            double siny = 2.0 * (q.w * q.z + q.x * q.y);
+            double cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+            rz = (float)(Math.Atan2(siny, cosy) * 180.0 / Math.PI);
+        }
+
         public static void RenderSyncSystem(World world)
         {
             List<int> entities = world.Query(typeof(Transform), typeof(MeshComponent));

@@ -3,6 +3,7 @@
   "primitive-shapes",
   "lighting",
   "textures",
+  "physics",
   "camera",
   "input",
   "time",

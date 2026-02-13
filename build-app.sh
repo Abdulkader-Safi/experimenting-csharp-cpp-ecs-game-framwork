@@ -15,6 +15,7 @@ mkdir -p "$APP_MACOS" "$APP_RESOURCES/build/shaders"
 
 cp "$BUILD_DIR/Viewer.exe" "$APP_RESOURCES/"
 cp "$BUILD_DIR/librenderer.dylib" "$APP_RESOURCES/"
+cp "$BUILD_DIR/libjoltc.dylib" "$APP_RESOURCES/"
 cp "$BUILD_DIR/shaders/vert.spv" "$BUILD_DIR/shaders/frag.spv" "$APP_RESOURCES/build/shaders/"
 if [ -d models ]; then cp -r models "$APP_RESOURCES/"; fi
 

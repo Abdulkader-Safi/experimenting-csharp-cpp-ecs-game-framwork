@@ -93,7 +93,8 @@ The Makefile uses two separate file lists — engine code and game logic — com
 
 ```makefile
 MANAGED_CS = managed/Viewer.cs managed/World.cs managed/Components.cs \
-             managed/NativeBridge.cs managed/FreeCameraState.cs
+             managed/NativeBridge.cs managed/FreeCameraState.cs \
+             managed/PhysicsBridge.cs managed/PhysicsWorld.cs
 GAMELOGIC_CS_FILES = game_logic/Game.cs game_logic/Systems.cs game_logic/GameConstants.cs
 VIEWER_CS = $(MANAGED_CS) $(GAMELOGIC_CS_FILES)
 
@@ -112,9 +113,10 @@ The repo includes `SaFiEngine.sln` (repo root) and `managed/SaFiEngine.csproj` f
 `make dev` splits C# into three assemblies for live code reloading:
 
 ```makefile
-# Engine (stable) — World, Components, NativeBridge, FreeCameraState
+# Engine (stable) — World, Components, NativeBridge, FreeCameraState, PhysicsBridge, PhysicsWorld
 ENGINE_CS = managed/World.cs managed/Components.cs \
-            managed/NativeBridge.cs managed/FreeCameraState.cs
+            managed/NativeBridge.cs managed/FreeCameraState.cs \
+            managed/PhysicsBridge.cs managed/PhysicsWorld.cs
 ENGINE_DLL = $(BUILD_DIR)/Engine.dll
 
 # Game logic (hot-reloadable) — Game.cs, Systems.cs, GameConstants.cs
@@ -128,7 +130,7 @@ VIEWERDEV_EXE = $(BUILD_DIR)/ViewerDev.exe
 
 | Assembly        | Contents                                                      | Reloadable? |
 | --------------- | ------------------------------------------------------------- | ----------- |
-| `Engine.dll`    | World, Components, NativeBridge, FreeCameraState              | No          |
+| `Engine.dll`    | World, Components, NativeBridge, FreeCameraState, PhysicsBridge, PhysicsWorld | No          |
 | `GameLogic.dll` | Game.cs, Systems.cs, GameConstants.cs                         | Yes         |
 | `ViewerDev.exe` | Viewer.cs + HotReload.cs (compiled with `-define:HOT_RELOAD`) | No          |
 
@@ -149,7 +151,7 @@ VK_ICD_FILENAMES=/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json \
     mono build/Viewer.exe
 ```
 
-- `DYLD_LIBRARY_PATH` — locates `librenderer.dylib` (in `build/`) and MoltenVK/GLFW (in `/opt/homebrew/lib`)
+- `DYLD_LIBRARY_PATH` — locates `librenderer.dylib` and `libjoltc.dylib` (in `build/`) and MoltenVK/GLFW (in `/opt/homebrew/lib`)
 - `VK_ICD_FILENAMES` — tells the Vulkan loader where to find the MoltenVK ICD. Note: the path is under `/etc/` not `/share/` (Homebrew-specific)
 - `mono` — runs the compiled .NET executable
 

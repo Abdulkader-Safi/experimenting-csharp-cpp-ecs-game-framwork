@@ -21,6 +21,18 @@ Ticks all `Timer` components each frame using `world.DeltaTime`:
 - **One-shot timers** (`Repeat = false`): `Finished` is set to `true` once and the timer stops advancing
 - **Interval timers** (`Repeat = true`): `Finished` is set to `true` each cycle, and `Elapsed` wraps by subtracting `Duration`
 
+### PhysicsSystem
+
+Queries: `Rigidbody` + `Collider` + `Transform`
+
+Three-phase system that integrates Jolt Physics:
+
+1. **Create bodies** — For entities with `Rigidbody` + `Collider` + `Transform` where `BodyCreated` is `false`, creates the Jolt shape and body.
+2. **Step physics** — Advances the Jolt simulation via `PhysicsWorld.Instance.Step()` using a fixed 1/60s timestep accumulator.
+3. **Sync transforms** — Reads position and rotation back from Jolt for dynamic bodies and writes them to the ECS `Transform` component (quaternion converted to Euler degrees).
+
+Static bodies are created but not synced back (they don't move). Inactive bodies (at rest) are skipped during sync.
+
 ### FreeCameraSystem
 
 No query — uses static `FreeCameraState`.
@@ -92,6 +104,7 @@ Systems run in the order they are added. **Order matters.** Systems are register
 // game_logic/Game.cs — inside Game.Setup(world)
 world.AddSystem(Systems.InputMovementSystem);        // runs first
 world.AddSystem(Systems.TimerSystem);                 // tick timers
+world.AddSystem(Systems.PhysicsSystem);               // physics step + sync transforms
 world.AddSystem(Systems.FreeCameraSystem);            // debug fly camera (before CameraFollow)
 world.AddSystem(Systems.CameraFollowSystem);          // updates camera from input
 world.AddSystem(Systems.LightSyncSystem);             // syncs lights to GPU
@@ -138,6 +151,7 @@ world.AddSystem(GravitySystem);
 world.AddSystem(DespawnDeadSystem);
 world.AddSystem(Systems.InputMovementSystem);
 world.AddSystem(Systems.TimerSystem);
+world.AddSystem(Systems.PhysicsSystem);
 world.AddSystem(Systems.FreeCameraSystem);
 world.AddSystem(Systems.CameraFollowSystem);
 world.AddSystem(Systems.LightSyncSystem);

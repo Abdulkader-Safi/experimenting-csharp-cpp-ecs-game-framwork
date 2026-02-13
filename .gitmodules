@@ -1,0 +1,3 @@
+[submodule "native/joltc"]
+	path = native/joltc
+	url = https://github.com/amerkoleci/joltc.git

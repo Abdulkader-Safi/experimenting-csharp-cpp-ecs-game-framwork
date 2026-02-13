@@ -26,6 +26,8 @@
 | Debug overlay (FPS, delta time, entity count, F3 toggle)      | Done   |
 | Textures & UV mapping (glTF base color texture, stb_image)    | Done   |
 | Hot reload (game logic live-reload with scene re-init)        | Done   |
+| Physics (Jolt Physics via joltc — rigid bodies, colliders)    | Done   |
+| Fixed timestep (1/60s accumulator for physics)                | Done   |
 
 --https://bevy.org/-
 
@@ -52,8 +54,8 @@
 
 ### 3. Physics & Collision
 
-- [ ] **Collision detection** — AABB, sphere, or mesh-based collision checks
-- [ ] **Rigid body dynamics** — Gravity, velocity, mass, forces, impulses
+- [x] **Collision detection** — Jolt Physics via joltc C API (box, sphere, capsule, cylinder, plane colliders)
+- [x] **Rigid body dynamics** — Gravity, velocity, friction, restitution, damping via Jolt Physics (static/kinematic/dynamic)
 - [ ] **Raycasting** — Cast rays to detect what the player is looking at or shooting at
 - [ ] **Character controller** — Grounded check, slope handling, step-up
 - [ ] **Trigger volumes** — Detect entity enter/exit (doors, damage zones, pickups)
@@ -111,7 +113,7 @@
 ### 11. Time & Delta Time
 
 - [x] **Delta time** — Frame-independent movement via native `glfwGetTime()`, exposed to C# through FFI
-- [ ] **Fixed timestep** — Consistent physics updates regardless of framerate
+- [x] **Fixed timestep** — 1/60s accumulator in PhysicsWorld (max 4 steps/frame)
 - [x] **Timers** — Countdown/interval timers for cooldowns, spawning, delays
 
 ### 12. Entity Lifecycle & Events
@@ -149,8 +151,8 @@
 
 **Phase 3 — Make it a game:**
 
-13. Collision detection (AABB)
-14. Rigid body physics (gravity, velocity)
+13. ~~Collision detection~~ ✓ (Jolt Physics)
+14. ~~Rigid body physics~~ ✓ (Jolt Physics)
 15. Raycasting
 16. Health/damage system
 17. Audio playback + spatial audio

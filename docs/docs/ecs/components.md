@@ -142,6 +142,54 @@ world.AddComponent(entity, new Light {
 | `InnerConeDeg` / `OuterConeDeg` | Cone angles in degrees (for spot lights)                        |
 | `LightIndex`                    | Assigned automatically by `LightSyncSystem`                     |
 
+### Rigidbody
+
+Defines the dynamics properties of a physics body. See the [Physics feature page](../features/physics.md) for full details.
+
+```csharp
+world.AddComponent(entity, new Rigidbody {
+    MotionType = JPH_MotionType.Dynamic,
+    Friction = 0.5f,
+    Restitution = 0.3f,
+    LinearDamping = 0.05f,
+    AngularDamping = 0.05f,
+    GravityFactor = 1.0f
+});
+```
+
+| Field            | Description                                                          |
+| ---------------- | -------------------------------------------------------------------- |
+| `MotionType`     | `JPH_MotionType.Static`, `Kinematic`, or `Dynamic` (default Dynamic) |
+| `Friction`       | Surface friction coefficient (default `0.5`)                          |
+| `Restitution`    | Bounciness (default `0.3`)                                            |
+| `LinearDamping`  | Velocity decay per second (default `0.05`)                            |
+| `AngularDamping` | Angular velocity decay per second (default `0.05`)                    |
+| `GravityFactor`  | Gravity multiplier (default `1.0`)                                    |
+| `BodyId`         | Assigned by Jolt after body creation                                  |
+| `BodyCreated`    | Set to `true` once the physics body exists                            |
+
+### Collider
+
+Defines the collision shape. Used together with `Rigidbody` and `Transform`.
+
+```csharp
+world.AddComponent(entity, new Collider {
+    ShapeType = Collider.Box,
+    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f
+});
+```
+
+| Field             | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `ShapeType`       | `Collider.Box` (0), `Sphere` (1), `Capsule` (2), `Cylinder` (3), `Plane` (4) |
+| `BoxHalfX/Y/Z`   | Half-extents for box shape (default `0.5`)                      |
+| `SphereRadius`    | Radius for sphere shape (default `0.5`)                         |
+| `CapsuleHalfHeight/Radius` | Capsule dimensions (default `0.5` / `0.3`)             |
+| `CylinderHalfHeight/Radius` | Cylinder dimensions (default `0.5` / `0.5`)           |
+| `PlaneNormalX/Y/Z` | Plane normal direction (default `0, 1, 0`)                    |
+| `PlaneDistance`   | Plane offset along normal (default `0`)                         |
+| `PlaneHalfExtent` | Plane size (default `100`)                                     |
+
 ## Writing Custom Components
 
 Define a class — components are plain data holders:

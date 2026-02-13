@@ -19,6 +19,7 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - **Timers** — Countdown and interval timers for cooldowns, spawning, and delays
 - **Delta Time** — Frame-independent movement via native-side GLFW timing
 - **Runtime Spawn/Despawn** — Create and destroy entities at runtime with automatic native resource cleanup
+- **Physics** — Jolt Physics integration via [joltc](https://github.com/amerkoleci/joltc) C API. Rigid body dynamics (static/kinematic/dynamic), collider shapes (box, sphere, capsule, cylinder, plane), gravity, friction, restitution, and damping. Fixed timestep (1/60s) with accumulator pattern.
 - **Hot Reload** — `make dev` watches `game_logic/` and live-reloads on save without restarting. Editing any file re-runs `Game.Setup`, so scene changes (new entities, lights, system registration) take effect immediately
 - **macOS App Bundle** — Packageable as a standalone `.app` with embedded runtime and assets
 
@@ -31,6 +32,19 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - [Vulkan SDK](https://vulkan.lunarg.com/) (MoltenVK on macOS)
 - [GLFW](https://www.glfw.org/) and [GLM](https://github.com/g-truc/glm) — `brew install glfw glm`
 - **glslc** (SPIR-V shader compiler, included with Vulkan SDK)
+
+### Installation
+
+```sh
+git clone --recursive https://github.com/Abdulkader-Safi/Safi-ECS-Game-Engine.git
+cd Safi-ECS-Game-Engine
+```
+
+If you already cloned without `--recursive`, fetch the submodules separately:
+
+```sh
+git submodule update --init --recursive
+```
 
 ### Build & Run
 
@@ -85,8 +99,8 @@ The C# side owns the game loop and all ECS logic. Each frame it queries entities
 
 ### ECS Pattern
 
-- **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`
-- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `TimerSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `RenderSyncSystem`
+- **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`, `Rigidbody`, `Collider`
+- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `TimerSystem` → `PhysicsSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `RenderSyncSystem`
 - **World** — Manages entity lifecycles, component storage, system registration, and delta time
 
 System execution order matters — `RenderSyncSystem` must always run last. Systems are registered in `game_logic/Game.cs`.
@@ -126,6 +140,7 @@ The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# Intell
 ├── SaFiEngine.sln                   # Solution file (IDE project discovery)
 ├── build-app.sh                     # macOS .app packaging script
 ├── native/
+│   ├── joltc/                       # Jolt Physics C API (git submodule)
 │   ├── CMakeLists.txt               # CMake config for shared library
 │   ├── renderer.cpp                 # Vulkan renderer implementation
 │   ├── renderer.h                   # Renderer class declaration
@@ -143,8 +158,10 @@ The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# Intell
 │   ├── SaFiEngine.csproj           # Project file (IDE IntelliSense only, not used by build)
 │   ├── Viewer.cs                    # Entry point — calls Game.Setup(), runs game loop
 │   ├── World.cs                     # ECS world: entities, components, systems
-│   ├── Components.cs                # Transform, MeshComponent, Movable, Light, Camera
+│   ├── Components.cs                # Transform, MeshComponent, Movable, Light, Camera, Rigidbody, Collider
 │   ├── NativeBridge.cs              # P/Invoke bindings to C++ renderer
+│   ├── PhysicsBridge.cs             # P/Invoke bindings to joltc physics library
+│   ├── PhysicsWorld.cs              # Jolt Physics lifecycle, body tracking, fixed timestep
 │   ├── FreeCameraState.cs           # Static state for the debug free camera
 │   └── HotReload.cs                 # File watcher + recompiler (dev mode)
 ├── game_logic/                      # GAME CODE (user edits these)
@@ -175,7 +192,7 @@ cd technical_docs && bun install && bun run dev    # Technical docs dev server
 
 ## Roadmap
 
-The engine currently implements 21 core features. The [full roadmap](plans/features.md) tracks 100+ planned features across rendering (textures, PBR, shadows), animation (skeletal, blending), physics (collision, rigidbody), scene management, audio, UI, AI, and cross-platform support including web export.
+The engine currently implements 23 core features. The [full roadmap](plans/features.md) tracks 100+ planned features across rendering (textures, PBR, shadows), animation (skeletal, blending), physics (collision, rigidbody), scene management, audio, UI, AI, and cross-platform support including web export.
 
 ## Support
 

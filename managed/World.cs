@@ -36,6 +36,9 @@ namespace ECS
         {
             if (!aliveEntities_.Contains(entity)) return;
 
+            // Clean up physics body if this entity has one
+            PhysicsWorld.Instance.RemoveBody(entity);
+
             // Clean up native renderer entity if this entity has a mesh
             var mc = GetComponent<MeshComponent>(entity);
             if (mc != null && mc.RendererEntityId >= 0)
@@ -147,6 +150,9 @@ namespace ECS
 
         public void Reset()
         {
+            // Remove all physics bodies before despawning entities
+            PhysicsWorld.Instance.RemoveAllBodies();
+
             // Despawn all entities (cleans up native renderer entities via MeshComponent)
             var ids = new List<int>(aliveEntities_);
             foreach (int id in ids)

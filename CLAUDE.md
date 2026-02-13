@@ -5,143 +5,117 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
-make viewer          # Build shaders + C++ dylib + C# exe
-make run             # Build and run the Vulkan viewer
+make run             # Build everything and run the Vulkan viewer
 make dev             # Build and run with hot reload (edit C# game logic live)
+make viewer          # Build shaders + C++ dylib + physics dylib + C# exe (no run)
 make app             # Build macOS .app bundle
 make shaders         # Compile GLSL → SPIR-V only
 make clean           # Remove all build artifacts
-make all             # Build hello demo (basic P/Invoke test)
 ```
 
-The viewer build does three things in sequence:
-
-1. `glslc` compiles 4 shaders (`.vert`/`.frag`) → `.spv` in `build/shaders/`
-2. CMake builds `native/` → `build/librenderer.dylib`
-3. `mcs` compiles all `managed/*.cs` + `game_logic/*.cs` → `build/Viewer.exe`
-
-`make run` sets `DYLD_LIBRARY_PATH` and `VK_ICD_FILENAMES` (MoltenVK) automatically. There is no test suite — verification is done by running the viewer (`make run`).
-
-## Documentation Sites
-
-Two Rspress doc sites live in the repo:
-
-```bash
-# User-facing docs
-cd docs && bun install && bun run dev        # Dev server
-cd docs && bun run build                     # Production build
-
-# Technical / renderer internals docs
-cd technical_docs && bun install && bun run dev
-cd technical_docs && bun run build
-```
-
-Both use Rspress 2.x (`@rspress/core`). The `docs/` site covers ECS usage and features. The `technical_docs/` site covers Vulkan renderer internals (pipeline setup, shaders, data structures, bridge API).
+The build pipeline has four stages: GLSL→SPIR-V (`glslc`), C++ renderer→`build/librenderer.dylib` (CMake), joltc→`build/libjoltc.dylib` (CMake), C#→`build/Viewer.exe` (`mcs`). `make run` sets `DYLD_LIBRARY_PATH` and `VK_ICD_FILENAMES` automatically. There is no test suite — verification is done visually via `make run`.
 
 ## Architecture
 
+C# (Mono) owns the main loop and all game logic. C++ owns Vulkan rendering. Jolt Physics runs via a separate C API (`joltc`). All cross-language communication is via P/Invoke.
+
+```
+C# Engine (managed/)              C++ Renderer (native/)        Physics (native/joltc/)
+  World, Components, Systems         VulkanRenderer class          Jolt Physics C API
+  NativeBridge.cs ──DllImport──>     bridge.cpp (extern "C")      libjoltc.dylib
+  PhysicsBridge.cs ──DllImport──>                                  (git submodule)
+```
+
 Two-folder structure separates engine from game code:
 
-```
-managed/                        ← ENGINE (user doesn't edit)
-  Viewer.cs                       Main loop, renderer init, #if HOT_RELOAD guards
-  World.cs                        ECS core (spawn, query, systems)
-  Components.cs                   Built-in component types
-  NativeBridge.cs                 P/Invoke bindings
-  FreeCameraState.cs              Debug camera state
-  HotReload.cs                    File watcher + recompiler
-  SaFiEngine.csproj               IntelliSense (includes game_logic/)
+- **`managed/`** — Engine (user doesn't edit): Viewer.cs, World.cs, Components.cs, NativeBridge.cs, PhysicsBridge.cs, PhysicsWorld.cs, FreeCameraState.cs, HotReload.cs
+- **`game_logic/`** — Game code (user edits): Game.cs, Systems.cs, GameConstants.cs
 
-game_logic/                     ← GAME CODE (user edits these)
-  Game.cs                         Scene setup + system registration
-  Systems.cs                      Per-frame system logic
-  GameConstants.cs                Tunable constants
-```
+**Adding a new renderer function** requires changes in three places:
 
-C# (Mono) drives the main loop and ECS game logic. C++ handles Vulkan rendering. They communicate via P/Invoke through a shared library.
-
-```
-C# World (managed/)             C++ VulkanRenderer (native/)
-  Entities + Components   ──P/Invoke──>  GPU resources
-  Systems (per-frame)     ──────────>    Draw calls
-  NativeBridge.cs         ──DllImport──> bridge.cpp (extern "C")
-```
-
-**Adding a new native function requires changes in three places:**
-
-1. `native/bridge.cpp` — `extern "C"` wrapper calling into `VulkanRenderer`
-2. `native/renderer.h` + `renderer.cpp` — implementation on the C++ class
+1. `native/renderer.h` + `renderer.cpp` — implementation
+2. `native/bridge.cpp` — `extern "C"` wrapper
 3. `managed/NativeBridge.cs` — `[DllImport("renderer")]` declaration
 
-**Adding a new C# game file:** add it to `game_logic/`. It will be auto-included in hot reload and picked up by the Makefile's `GAMELOGIC_CS_FILES` list (add to Makefile for `make viewer`/`make run`).
+**Adding a new C# game file:** add to `game_logic/` and `GAMELOGIC_CS_FILES` in the Makefile. Auto-included in hot reload.
 
-**Adding a new engine C# file:** add it to the `MANAGED_CS` list in the `Makefile`.
+**Adding a new engine C# file:** add to `managed/` and both `MANAGED_CS` and `ENGINE_CS` in the Makefile.
 
-**Adding a new GLSL shader:** add compilation rules and SPV targets in the `Makefile`, then add to the `shaders:` dependency list.
+**Adding a new GLSL shader:** add compilation rules and SPV targets in the Makefile, then add to the `shaders:` dependency list.
+
+## ECS Pattern
+
+- **Components** are plain C# classes (data only, no behavior, must be reference types) in `managed/Components.cs`
+- **Systems** are `static void Name(World world)` methods that query and mutate, in `game_logic/Systems.cs`
+- **System order matters:** register input systems first, `RenderSyncSystem` always last
+- `world.Query(typeof(A), typeof(B))` returns entities with ALL specified components
+- Despawning cascade-deletes children (via `Hierarchy` component) and cleans up renderer + physics resources
+
+Built-in system chain (registered in `game_logic/Game.cs`):
+
+```
+InputMovement → Timer → Physics → FreeCamera → CameraFollow → LightSync → HierarchyTransform → DebugOverlay → RenderSync
+```
+
+## Physics (Jolt via joltc)
+
+Physics uses [joltc](https://github.com/amerkoleci/joltc) (C API for Jolt Physics) as a git submodule at `native/joltc/`. The integration follows the same P/Invoke pattern as the renderer.
+
+- **`PhysicsBridge.cs`** — `[DllImport("joltc")]` declarations, blittable structs (`JPH_Vec3`, `JPH_RVec3`, `JPH_Quat`), enums (`JPH_MotionType`)
+- **`PhysicsWorld.cs`** — Engine-layer singleton managing Jolt lifecycle, body tracking (`Dictionary<int, uint>` entityId→bodyId), fixed timestep (1/60s, max 4 steps/frame)
+- **`PhysicsSystem`** (in `game_logic/Systems.cs`) — Three-phase: create bodies → step simulation → sync transforms back to ECS
+- **`Rigidbody`** + **`Collider`** components (in `managed/Components.cs`) — Separate dynamics properties from shape definition
+
+Key details:
+
+- `JPH_RVec3` uses `double` (positions), `JPH_Vec3` uses `float` (velocities/forces)
+- No single `RemoveAndDestroyBody` — must call `RemoveBody` then `DestroyBody` separately
+- Do NOT call `JPH_Shape_Destroy` after body creation — Jolt ref-counts shapes internally
+- `PhysicsWorld` singleton survives hot reloads (engine layer); `PhysicsSystem` is hot-reloadable (game layer)
+- `world.Reset()` calls `RemoveAllBodies()` before despawning; `world.Despawn()` calls `RemoveBody()`
 
 ## Dual Vulkan Pipeline
 
 The renderer runs two graphics pipelines within the same render pass:
 
-1. **3D Scene Pipeline** — depth testing, back-face culling, Blinn-Phong shading. Uses `Vertex` (pos/normal/color), UBOs for view/proj + lights, push constants for per-entity model matrix. Shaders: `shader.vert`, `shader.frag`.
+1. **3D Scene Pipeline** — depth testing, back-face culling, Blinn-Phong shading. `Vertex` (pos/normal/color/uv), UBOs for view/proj + lights, push constants for per-entity model matrix. Shaders: `shader.vert`, `shader.frag`.
 
-2. **UI Overlay Pipeline** — no depth test, alpha blending (`SRC_ALPHA/ONE_MINUS_SRC_ALPHA`), no culling. Uses `UIVertex` (pos/uv/color), a `COMBINED_IMAGE_SAMPLER` for the font atlas, push constant `vec2 screenSize`. Shaders: `ui.vert`, `ui.frag`. Renders after the 3D scene, before `vkCmdEndRenderPass`.
-
-The UI pipeline uses host-visible, persistently-mapped vertex buffers (one per frame-in-flight, max 4096 vertices). The font atlas is a 512x512 `R8_UNORM` texture baked from TTF via stb_truetype at init.
-
-## ECS Pattern
-
-- **Components** are plain C# classes (data only, no behavior, must be reference types)
-- **Systems** are `static void SystemName(World world)` methods that query and mutate
-- **System order matters:** register input systems first, `RenderSyncSystem` always last
-- `world.DeltaTime` is set each frame from `NativeBridge.renderer_get_delta_time()`
-- Despawning an entity cascade-deletes all children (via `Hierarchy` component)
-- `world.Query(typeof(A), typeof(B))` returns entities with ALL specified components
-
-Built-in system chain (registered in `game_logic/Game.cs`):
-
-```
-InputMovement → Timer → FreeCamera → CameraFollow → LightSync → HierarchyTransform → DebugOverlay → RenderSync
-```
+2. **UI Overlay Pipeline** — no depth test, alpha blending, no culling. `UIVertex` (pos/uv/color), font atlas sampler, push constant `vec2 screenSize`. Shaders: `ui.vert`, `ui.frag`. Renders after 3D scene.
 
 ## Hot Reload (Dev Mode)
 
-`make dev` splits C# into three assemblies for live code reloading:
+`make dev` splits C# into three assemblies:
 
-- **Engine.dll** (stable) — World, Components, NativeBridge, FreeCameraState
-- **GameLogic.dll** (hot-reloadable) — all `game_logic/*.cs` files (Game.cs, Systems.cs, GameConstants.cs)
+- **Engine.dll** (stable) — World, Components, NativeBridge, PhysicsBridge, PhysicsWorld, FreeCameraState
+- **GameLogic.dll** (hot-reloadable) — all `game_logic/*.cs` files
 - **ViewerDev.exe** — Viewer + HotReload, compiled with `-define:HOT_RELOAD`
 
-A single `FileSystemWatcher` monitors `game_logic/` for `.cs` changes. On save, it auto-discovers all `.cs` files in the directory, recompiles `GameLogic.dll`, and loads the new assembly via reflection. The reload uses `Game.Setup` for full scene re-initialization:
+On save, `FileSystemWatcher` recompiles `GameLogic.dll`, calls `world.Reset()` (which removes all physics bodies, despawns entities, clears lights), then re-invokes `Game.Setup(world)` from the new assembly.
 
-1. `world.Reset()` — despawns all entities (with native renderer cleanup), clears component stores, clears systems, clears all 8 light slots, resets entity IDs
-2. `Game.Setup(world)` is re-invoked from the new assembly, rebuilding the entire scene
-
-This means **any** `game_logic/` change takes effect immediately: new entities, changed lights, updated constants, modified system logic, re-ordered system registration.
-
-`make run` and `make app` are completely unaffected — they compile everything into a single `Viewer.exe` with no hot reload code (`#if HOT_RELOAD` guards).
-
-**Limitations:**
-
-- Only `game_logic/` files are hot-reloadable. Engine changes (`managed/`) require restart.
-- Old assemblies leak memory (Mono can't unload). Restart after many reloads.
-- Static fields in Systems.cs (e.g., `wasF3Pressed_`) and GameConstants values reset on reload.
+Limitations: only `game_logic/` is hot-reloadable; old assemblies leak (Mono can't unload); static fields reset on reload.
 
 ## Mono/mcs C# Compatibility
 
 The project compiles with `mcs` (Mono), not `dotnet build`. Key limitations:
 
-- **No C# 7 ValueTuple named fields.** `(string name, Action action)` tuples compile but named field access (`.name`) fails with "inaccessible due to protection level". Use plain classes instead.
-- **`ECS.Timer` shadows `System.Threading.Timer`.** Inside the `ECS` namespace, always fully qualify as `System.Threading.Timer`.
+- **No C# 7 ValueTuple named fields.** Named field access (`.name`) fails with "inaccessible due to protection level". Use plain classes instead.
+- **`ECS.Timer` shadows `System.Threading.Timer`.** Always fully qualify as `System.Threading.Timer` inside the `ECS` namespace.
+
+## Documentation Sites
+
+Two Rspress 2.x sites:
+
+```bash
+cd docs && bun install && bun run dev              # User-facing docs
+cd technical_docs && bun install && bun run dev    # Renderer internals docs
+```
 
 ## Key Constraints
 
 - MoltenVK ICD path: `/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json` (not under `/share/`)
-- MoltenVK requires `VK_KHR_portability_enumeration` instance extension + `VK_KHR_portability_subset` device extension
-- `cgltf.h` needs `#define CGLTF_IMPLEMENTATION` in exactly one `.cpp` file (same for `stb_truetype.h` with `STB_TRUETYPE_IMPLEMENTATION`)
-- `VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER` ≠ `VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT` — different enum types
-- GLFW/Vulkan tests fail in headless/subprocess contexts (no window server) — expected on macOS
-- Fragment shader supports max 8 dynamic lights (defined as `MAX_LIGHTS` in shader and C++)
-- Push constants carry per-entity model matrix (3D) or screen size (UI) — separate pipeline layouts
-- CMake generates `compile_commands.json` symlinked to repo root for IDE C++ intellisense
+- MoltenVK requires `VK_KHR_portability_enumeration` + `VK_KHR_portability_subset` extensions
+- `cgltf.h`, `stb_truetype.h`, `stb_image.h` each need `#define *_IMPLEMENTATION` in exactly one `.cpp` file
+- Fragment shader max 8 dynamic lights (`MAX_LIGHTS` in shader and C++)
 - Font atlas requires `assets/fonts/RobotoMono-Regular.ttf` — falls back to 1x1 white placeholder if missing
+- GLFW/Vulkan tests fail in headless/subprocess contexts (no window server) — expected on macOS
+- First joltc build fetches JoltPhysics via CMake FetchContent (~1 min); subsequent builds are fast

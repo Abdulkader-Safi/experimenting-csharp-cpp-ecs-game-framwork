@@ -11,5 +11,7 @@
     <Compile Include="NativeBridge.cs" />
     <Compile Include="FreeCameraState.cs" />
     <Compile Include="HotReload.cs" />
+    <Compile Include="PhysicsBridge.cs" />
+    <Compile Include="PhysicsWorld.cs" />
   </ItemGroup>
 </Project>

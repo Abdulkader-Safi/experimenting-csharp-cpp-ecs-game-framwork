@@ -45,6 +45,8 @@ The C# `World` tracks entities and their components. Systems run each frame, que
 | UI rendering pipeline (2D quads, alpha blending)              | Done   |
 | Text rendering (stb_truetype font atlas)                      | Done   |
 | Textures & UV mapping (glTF base color textures)              | Done   |
+| Physics (Jolt Physics via joltc — rigid bodies, colliders)    | Done   |
+| Fixed timestep (1/60s accumulator for physics)                | Done   |
 
 ## Next Steps
 
