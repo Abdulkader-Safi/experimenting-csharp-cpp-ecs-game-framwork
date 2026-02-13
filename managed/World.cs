@@ -164,6 +164,9 @@ namespace ECS
             components_.Clear();
             systems_.Clear();
 
+            // Clear all debug wireframe entities on the native side
+            NativeBridge.ClearDebugEntities();
+
             // Clear all 8 light slots on the native side
             for (int i = 0; i < 8; i++)
                 NativeBridge.ClearLight(i);

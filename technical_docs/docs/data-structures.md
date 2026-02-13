@@ -132,6 +132,8 @@ struct EntityData {
 };
 ```
 
+The same `EntityData` struct is used for both regular entities (`entities_`) and debug wireframe entities (`debugEntities_`). Each has its own free-slot list for ID reuse.
+
 ## Queue Family Indices
 
 ```cpp

@@ -2,6 +2,31 @@ using System;
 
 namespace ECS
 {
+    public class Color
+    {
+        public float R, G, B, A;
+
+        public Color(float r, float g, float b, float a = 1f) { R = r; G = g; B = b; A = a; }
+
+        public Color(string hex)
+        {
+            if (hex.StartsWith("#")) hex = hex.Substring(1);
+            R = int.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber) / 255f;
+            G = int.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber) / 255f;
+            B = int.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber) / 255f;
+            A = hex.Length >= 8
+                ? int.Parse(hex.Substring(6, 2), System.Globalization.NumberStyles.HexNumber) / 255f
+                : 1f;
+        }
+
+        public static Color Green { get { return new Color(0f, 1f, 0f); } }
+        public static Color Red { get { return new Color(1f, 0f, 0f); } }
+        public static Color Blue { get { return new Color(0f, 0f, 1f); } }
+        public static Color Yellow { get { return new Color(1f, 1f, 0f); } }
+        public static Color Cyan { get { return new Color(0f, 1f, 1f); } }
+        public static Color White { get { return new Color(1f, 1f, 1f); } }
+    }
+
     public class Transform
     {
         public float X = 0f, Y = 0f, Z = 0f;
@@ -134,6 +159,9 @@ namespace ECS
         public float PlaneNormalX = 0f, PlaneNormalY = 1f, PlaneNormalZ = 0f;
         public float PlaneDistance = 0f;
         public float PlaneHalfExtent = 100f;
+
+        // Debug wireframe color (default green)
+        public Color DebugColor = Color.Green;
     }
 
     public class Camera

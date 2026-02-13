@@ -79,6 +79,12 @@ namespace ECS
         [DllImport(LIB)] public static extern void renderer_set_debug_overlay(int enabled);
         [DllImport(LIB)] public static extern int renderer_get_entity_count();
 
+        // Debug Wireframe Entity API
+        [DllImport(LIB)] public static extern int renderer_create_debug_entity(int meshId);
+        [DllImport(LIB)] public static extern void renderer_set_debug_entity_transform(int entityId, float[] mat4x4);
+        [DllImport(LIB)] public static extern void renderer_remove_debug_entity(int entityId);
+        [DllImport(LIB)] public static extern void renderer_clear_debug_entities();
+
         // Lighting API
         [DllImport(LIB)]
         public static extern void renderer_set_light(
@@ -234,6 +240,26 @@ namespace ECS
         public static void ResetScrollOffset()
         {
             renderer_reset_scroll_offset();
+        }
+
+        public static int CreateDebugEntity(int meshId)
+        {
+            return renderer_create_debug_entity(meshId);
+        }
+
+        public static void SetDebugEntityTransform(int entityId, float[] matrix)
+        {
+            renderer_set_debug_entity_transform(entityId, matrix);
+        }
+
+        public static void RemoveDebugEntity(int entityId)
+        {
+            renderer_remove_debug_entity(entityId);
+        }
+
+        public static void ClearDebugEntities()
+        {
+            renderer_clear_debug_entities();
         }
     }
 }

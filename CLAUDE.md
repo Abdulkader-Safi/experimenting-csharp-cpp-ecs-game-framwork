@@ -54,7 +54,7 @@ Two-folder structure separates engine from game code:
 Built-in system chain (registered in `game_logic/Game.cs`):
 
 ```
-InputMovement → Timer → Physics → FreeCamera → CameraFollow → LightSync → HierarchyTransform → DebugOverlay → RenderSync
+InputMovement → Timer → Physics → FreeCamera → CameraFollow → LightSync → HierarchyTransform → DebugOverlay → DebugColliderRender → RenderSync
 ```
 
 ## Physics (Jolt via joltc)
@@ -74,13 +74,15 @@ Key details:
 - `PhysicsWorld` singleton survives hot reloads (engine layer); `PhysicsSystem` is hot-reloadable (game layer)
 - `world.Reset()` calls `RemoveAllBodies()` before despawning; `world.Despawn()` calls `RemoveBody()`
 
-## Dual Vulkan Pipeline
+## Vulkan Pipelines
 
-The renderer runs two graphics pipelines within the same render pass:
+The renderer runs three graphics pipelines within the same render pass:
 
 1. **3D Scene Pipeline** — depth testing, back-face culling, Blinn-Phong shading. `Vertex` (pos/normal/color/uv), UBOs for view/proj + lights, push constants for per-entity model matrix. Shaders: `shader.vert`, `shader.frag`.
 
-2. **UI Overlay Pipeline** — no depth test, alpha blending, no culling. `UIVertex` (pos/uv/color), font atlas sampler, push constant `vec2 screenSize`. Shaders: `ui.vert`, `ui.frag`. Renders after 3D scene.
+2. **Debug Wireframe Pipeline** — `VK_POLYGON_MODE_LINE`, no culling, no depth write, `LESS_OR_EQUAL` depth test. Reuses 3D pipeline shaders, layout, and vertex/index buffers. Renders debug entities (collider shapes) only when debug overlay is enabled. Requires `fillModeNonSolid` device feature.
+
+3. **UI Overlay Pipeline** — no depth test, alpha blending, no culling. `UIVertex` (pos/uv/color), font atlas sampler, push constant `vec2 screenSize`. Shaders: `ui.vert`, `ui.frag`. Renders after 3D scene and debug wireframes.
 
 ## Hot Reload (Dev Mode)
 

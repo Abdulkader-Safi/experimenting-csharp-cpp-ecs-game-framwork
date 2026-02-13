@@ -20,7 +20,15 @@ public static class Game
 
         // Spawn movable entity (controlled by WASD)
         int player = world.Spawn();
+        world.AddComponent(player, new Rigidbody { Friction = 0.3f, Restitution = 0.7f, GravityFactor = 0.5f });
+        world.AddComponent(player, new Collider { ShapeType = Collider.Capsule, CapsuleRadius = 0.2f, DebugColor = Color.Blue });
         world.AddComponent(player, new Transform());
+
+        // Second collider as child entity (box wireframe, follows player)
+        int playerBox = world.Spawn();
+        world.AddComponent(playerBox, new Transform());
+        world.AddComponent(playerBox, new Hierarchy { Parent = player });
+        world.AddComponent(playerBox, new Collider { ShapeType = Collider.Box, DebugColor = new Color("#ff6600") });
         var playerMesh = new MeshComponent
         {
             MeshId = meshId,
@@ -120,30 +128,6 @@ public static class Game
         world.AddComponent(physGround, new Rigidbody { MotionType = JPH_MotionType.Static, Friction = 0.8f });
         world.AddComponent(physGround, new Collider { ShapeType = Collider.Plane, PlaneHalfExtent = 100f });
 
-        // Dynamic red box - falls from height
-        int physBoxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, 0.9f, 0.2f, 0.2f);
-        int physBox = world.Spawn();
-        world.AddComponent(physBox, new Transform { X = 0f, Y = 5f, Z = -5f });
-        world.AddComponent(physBox, new MeshComponent
-        {
-            MeshId = physBoxMesh,
-            RendererEntityId = NativeBridge.CreateEntity(physBoxMesh)
-        });
-        world.AddComponent(physBox, new Rigidbody { Friction = 0.5f, Restitution = 0.3f });
-        world.AddComponent(physBox, new Collider { ShapeType = Collider.Box, BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f });
-
-        // Dynamic green sphere - bounces
-        int physSphereMesh = NativeBridge.CreateSphereMesh(0.5f, 32, 16, 0.2f, 0.9f, 0.2f);
-        int physSphere = world.Spawn();
-        world.AddComponent(physSphere, new Transform { X = 2f, Y = 8f, Z = -5f });
-        world.AddComponent(physSphere, new MeshComponent
-        {
-            MeshId = physSphereMesh,
-            RendererEntityId = NativeBridge.CreateEntity(physSphereMesh)
-        });
-        world.AddComponent(physSphere, new Rigidbody { Friction = 0.3f, Restitution = 0.7f });
-        world.AddComponent(physSphere, new Collider { ShapeType = Collider.Sphere, SphereRadius = 0.5f });
-
         PhysicsWorld.Instance.OptimizeBroadPhase();
 
         // Register systems (order matters - RenderSync always last)
@@ -155,6 +139,7 @@ public static class Game
         world.AddSystem(Systems.LightSyncSystem);
         world.AddSystem(Systems.HierarchyTransformSystem);
         world.AddSystem(Systems.DebugOverlaySystem);
+        world.AddSystem(Systems.DebugColliderRenderSystem);
         world.AddSystem(Systems.RenderSyncSystem);
     }
 }

@@ -216,4 +216,39 @@ int renderer_get_entity_count() {
     return g_renderer.getActiveEntityCount();
 }
 
+// --- Debug Wireframe Entity API ---
+
+int renderer_create_debug_entity(int mesh_id) {
+    try {
+        return g_renderer.createDebugEntity(mesh_id);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_create_debug_entity error: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+void renderer_set_debug_entity_transform(int entity_id, const float* mat4x4) {
+    try {
+        g_renderer.setDebugEntityTransform(entity_id, mat4x4);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_set_debug_entity_transform error: " << e.what() << std::endl;
+    }
+}
+
+void renderer_remove_debug_entity(int entity_id) {
+    try {
+        g_renderer.removeDebugEntity(entity_id);
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_remove_debug_entity error: " << e.what() << std::endl;
+    }
+}
+
+void renderer_clear_debug_entities() {
+    try {
+        g_renderer.clearDebugEntities();
+    } catch (const std::exception& e) {
+        std::cerr << "renderer_clear_debug_entities error: " << e.what() << std::endl;
+    }
+}
+
 } // extern "C"

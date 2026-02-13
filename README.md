@@ -2,7 +2,7 @@
 
 A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop and all game logic through an Entity Component System, while a C++ shared library handles Vulkan rendering — connected via Mono P/Invoke.
 
-![Safi ECS Game Engine](assets/img4.png)
+![Safi ECS Game Engine](assets/img5.png)
 
 ## Features
 
@@ -15,7 +15,7 @@ A Vulkan-based ECS game engine built with C# and C++. C# drives the main loop an
 - **Camera System** — Orbit (third-person), first-person, and free debug fly camera with mouse look, zoom, and mode switching
 - **Keyboard & Mouse Input** — WASD/arrow key movement, mouse look, scroll wheel zoom, mouse buttons, cursor lock toggle
 - **Parent-Child Hierarchy** — Entity relationships with automatic world-space transform propagation
-- **Debug Overlay** — FPS counter, delta time, and entity count rendered as GPU text via a second Vulkan pipeline with stb_truetype font atlas; toggled with F3
+- **Debug Overlay** — FPS counter, delta time, and entity count rendered as GPU text via a second Vulkan pipeline with stb_truetype font atlas; toggled with F3. When enabled, wireframe outlines are drawn around all physics colliders using a dedicated wireframe pipeline (`VK_POLYGON_MODE_LINE`) with per-collider configurable colors via `DebugColor`
 - **Timers** — Countdown and interval timers for cooldowns, spawning, and delays
 - **Delta Time** — Frame-independent movement via native-side GLFW timing
 - **Runtime Spawn/Despawn** — Create and destroy entities at runtime with automatic native resource cleanup
@@ -81,9 +81,9 @@ This compiles GLSL shaders to SPIR-V, builds the C++ shared library via CMake, c
 
 #### Global
 
-| Input | Action                                       |
-| ----- | -------------------------------------------- |
-| F3    | Toggle debug overlay (FPS, DT, entity count) |
+| Input | Action                                                              |
+| ----- | ------------------------------------------------------------------- |
+| F3    | Toggle debug overlay (FPS, DT, entity count, collider wireframes)   |
 
 ## Architecture
 
@@ -99,8 +99,8 @@ The C# side owns the game loop and all ECS logic. Each frame it queries entities
 
 ### ECS Pattern
 
-- **Components** — Plain C# classes (data only): `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`, `Rigidbody`, `Collider`
-- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `TimerSystem` → `PhysicsSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `RenderSyncSystem`
+- **Components** — Plain C# classes (data only): `Color`, `Transform`, `MeshComponent`, `Movable`, `Light`, `Camera`, `Rigidbody`, `Collider`
+- **Systems** — Static methods that query and mutate the world: `InputMovementSystem` → `TimerSystem` → `PhysicsSystem` → `FreeCameraSystem` → `CameraFollowSystem` → `LightSyncSystem` → `HierarchyTransformSystem` → `DebugOverlaySystem` → `DebugColliderRenderSystem` → `RenderSyncSystem`
 - **World** — Manages entity lifecycles, component storage, system registration, and delta time
 
 System execution order matters — `RenderSyncSystem` must always run last. Systems are registered in `game_logic/Game.cs`.
@@ -158,7 +158,7 @@ The repo includes `SaFiEngine.sln` and `managed/SaFiEngine.csproj` for C# Intell
 │   ├── SaFiEngine.csproj           # Project file (IDE IntelliSense only, not used by build)
 │   ├── Viewer.cs                    # Entry point — calls Game.Setup(), runs game loop
 │   ├── World.cs                     # ECS world: entities, components, systems
-│   ├── Components.cs                # Transform, MeshComponent, Movable, Light, Camera, Rigidbody, Collider
+│   ├── Components.cs                # Color, Transform, MeshComponent, Movable, Light, Camera, Rigidbody, Collider
 │   ├── NativeBridge.cs              # P/Invoke bindings to C++ renderer
 │   ├── PhysicsBridge.cs             # P/Invoke bindings to joltc physics library
 │   ├── PhysicsWorld.cs              # Jolt Physics lifecycle, body tracking, fixed timestep

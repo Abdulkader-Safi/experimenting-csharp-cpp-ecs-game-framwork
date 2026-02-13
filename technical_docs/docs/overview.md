@@ -34,14 +34,14 @@ A separate P/Invoke boundary exists for physics: `PhysicsBridge.cs` calls into `
 | `native/vendor/`              | Header-only third-party libraries: `cgltf.h` (glTF 2.0 parsing), `stb_truetype.h` (TrueType font rasterization), `stb_image.h` (image decoding for textures). Each requires a `#define *_IMPLEMENTATION` in exactly one `.cpp` file.                                                                           |
 | `managed/Viewer.cs`           | Application entry point. Creates the ECS `World`, calls `Game.Setup(world)`, and runs the main loop.                                                                                                                                                                                                           |
 | `managed/World.cs`            | ECS world: entity creation/despawning, component storage, and `Query()` for matching entities by component type.                                                                                                                                                                                               |
-| `managed/Components.cs`       | All component definitions (plain C# classes, data only). Includes `Transform`, `MeshRenderer`, `Camera`, `Light`, `Hierarchy`, `Rigidbody`, `Collider`, etc.                                                                                                                                                   |
+| `managed/Components.cs`       | All component definitions (plain C# classes, data only). Includes `Color` (RGBA with hex string support), `Transform`, `MeshRenderer`, `Camera`, `Light`, `Hierarchy`, `Rigidbody`, `Collider` (with `DebugColor` for wireframe visualization), etc.                                                           |
 | `managed/NativeBridge.cs`     | C# P/Invoke declarations (`[DllImport("renderer")]`) for every function exported by `bridge.cpp`. Also defines GLFW key/mouse constants used by input systems.                                                                                                                                                 |
 | `managed/PhysicsBridge.cs`    | C# P/Invoke declarations (`[DllImport("joltc")]`) for the Jolt Physics C API. Defines blittable structs (`JPH_Vec3`, `JPH_RVec3`, `JPH_Quat`, `JPH_Plane`, `JPH_PhysicsSystemSettings`) and enums (`JPH_MotionType`, `JPH_Activation`).                                                                        |
-| `managed/PhysicsWorld.cs`     | Singleton managing the Jolt Physics lifecycle: init, fixed-timestep stepping, body creation/removal, position/rotation readback, and shutdown. Survives hot reloads (engine layer).                                                                                                                              |
+| `managed/PhysicsWorld.cs`     | Singleton managing the Jolt Physics lifecycle: init, fixed-timestep stepping, body creation/removal, position/rotation readback, and shutdown. Survives hot reloads (engine layer).                                                                                                                            |
 | `managed/FreeCameraState.cs`  | Static state for the debug free camera.                                                                                                                                                                                                                                                                        |
 | `managed/HotReload.cs`        | File watcher + recompiler for dev mode. Watches `game_logic/` for changes, recompiles `GameLogic.dll`, then resets the world and re-runs `Game.Setup` for full scene re-initialization.                                                                                                                        |
 | `game_logic/Game.cs`          | Scene setup entry point. `Game.Setup(world)` spawns entities, configures components, and registers systems.                                                                                                                                                                                                    |
-| `game_logic/Systems.cs`       | All system implementations (`static void` methods). The built-in system chain runs in registration order: InputMovement, Timer, Physics, FreeCamera, CameraFollow, LightSync, HierarchyTransform, DebugOverlay, RenderSync.                                                                                    |
+| `game_logic/Systems.cs`       | All system implementations (`static void` methods). The built-in system chain runs in registration order: InputMovement, Timer, Physics, FreeCamera, CameraFollow, LightSync, HierarchyTransform, DebugOverlay, DebugColliderRender, RenderSync.                                                               |
 | `game_logic/GameConstants.cs` | Tunable config values (debug mode, camera sensitivity, movement speed).                                                                                                                                                                                                                                        |
 | `Makefile`                    | Top-level build orchestration: shader compilation, CMake invocation, C# compilation, and the `run` target that sets environment variables and launches Mono.                                                                                                                                                   |
 | `SaFiEngine.sln`              | Solution file at repo root. Used by IDEs (VS Code C# Dev Kit, OmniSharp) to discover the C# project. Not used by the Makefile build.                                                                                                                                                                           |
@@ -92,9 +92,9 @@ VK_ICD_FILENAMES=/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json \
 
 `DYLD_LIBRARY_PATH` tells Mono where to find `librenderer.dylib` (and GLFW/MoltenVK from Homebrew). `VK_ICD_FILENAMES` points Vulkan's loader to the MoltenVK ICD so that Vulkan runs on top of Metal.
 
-## Dual-Pipeline Architecture
+## Triple-Pipeline Architecture
 
-The renderer runs **two graphics pipelines** within a single Vulkan render pass. Both pipelines share the same swapchain framebuffers and command buffers, but they have different pipeline states and descriptor layouts.
+The renderer runs **three graphics pipelines** within a single Vulkan render pass. All pipelines share the same swapchain framebuffers and command buffers, but they have different pipeline states.
 
 ### 3D Scene Pipeline
 
@@ -108,6 +108,20 @@ The renderer runs **two graphics pipelines** within a single Vulkan render pass.
 | Push constants | `mat4 model` -- per-entity model matrix                                    |
 
 The 3D pipeline renders all opaque scene geometry first.
+
+### Debug Wireframe Pipeline
+
+| Setting        | Value                                                               |
+| -------------- | ------------------------------------------------------------------- |
+| Depth test     | Enabled (`VK_COMPARE_OP_LESS_OR_EQUAL`)                             |
+| Depth write    | Disabled (wireframes don't occlude other objects)                   |
+| Face culling   | None                                                                |
+| Polygon mode   | `VK_POLYGON_MODE_LINE` (requires `fillModeNonSolid` device feature) |
+| Vertex format  | Same `Vertex` as 3D pipeline                                        |
+| Descriptors    | Same layout as 3D pipeline (set 0: UBOs, set 1: material texture)   |
+| Push constants | Same `mat4 model` as 3D pipeline                                    |
+
+The debug wireframe pipeline renders **after** 3D geometry and **before** the UI overlay, but only when the debug overlay is enabled (`debugOverlayEnabled_ == true`). Debug entities are stored in a separate `debugEntities_` list and use meshes from the shared combined vertex/index buffers. Created alongside the 3D pipeline in `createGraphicsPipeline()` by modifying rasterizer and depth-stencil state.
 
 ### UI Overlay Pipeline
 

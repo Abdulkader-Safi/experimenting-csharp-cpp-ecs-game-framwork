@@ -28,6 +28,7 @@
 | Hot reload (game logic live-reload with scene re-init)        | Done   |
 | Physics (Jolt Physics via joltc — rigid bodies, colliders)    | Done   |
 | Fixed timestep (1/60s accumulator for physics)                | Done   |
+| Debug collider visualization (wireframe overlay, F3 toggle, per-collider color) | Done |
 
 --https://bevy.org/-
 

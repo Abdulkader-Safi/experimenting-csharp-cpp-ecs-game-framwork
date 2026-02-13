@@ -79,10 +79,19 @@ C# calls these functions via `[DllImport("renderer")]` in `NativeBridge.cs`.
 
 ### Debug
 
-| C Bridge                              | C++ Method               |
+| C Bridge                              | C++ Method               | Notes    |
 | ------------------------------------- | ------------------------ | -------- |
 | `renderer_set_debug_overlay(enabled)` | `setDebugOverlay()`      | int→bool |
-| `renderer_get_entity_count()` → int   | `getActiveEntityCount()` |
+| `renderer_get_entity_count()` → int   | `getActiveEntityCount()` |          |
+
+### Debug Wireframe Entities
+
+| C Bridge                                        | C++ Method                  | Notes                 |
+| ----------------------------------------------- | --------------------------- | --------------------- |
+| `renderer_create_debug_entity(mesh_id)` → int   | `createDebugEntity()`       | try/catch, returns ID |
+| `renderer_set_debug_entity_transform(id, mat4)` | `setDebugEntityTransform()` | try/catch             |
+| `renderer_remove_debug_entity(id)`              | `removeDebugEntity()`       | try/catch             |
+| `renderer_clear_debug_entities()`               | `clearDebugEntities()`      | try/catch             |
 
 ## Type Mapping (C# → C++)
 

@@ -156,6 +156,8 @@ void VulkanRenderer::cleanup() {
     vkDestroyDescriptorPool(device_, descriptorPool_, nullptr);
   if (descriptorSetLayout_)
     vkDestroyDescriptorSetLayout(device_, descriptorSetLayout_, nullptr);
+  if (debugPipeline_)
+    vkDestroyPipeline(device_, debugPipeline_, nullptr);
   if (graphicsPipeline_)
     vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
   if (pipelineLayout_)
@@ -1020,6 +1022,7 @@ void VulkanRenderer::createLogicalDevice() {
   }
 
   VkPhysicalDeviceFeatures deviceFeatures{};
+  deviceFeatures.fillModeNonSolid = VK_TRUE;
 
   std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
                                                 "VK_KHR_portability_subset"};
@@ -1361,6 +1364,16 @@ void VulkanRenderer::createGraphicsPipeline() {
   checkVk(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo,
                                     nullptr, &graphicsPipeline_),
           "Failed to create graphics pipeline");
+
+  // Create debug wireframe pipeline (same shaders/layout, wireframe mode)
+  rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+  rasterizer.cullMode = VK_CULL_MODE_NONE;
+  depthStencil.depthWriteEnable = VK_FALSE;
+  depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+  checkVk(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                    nullptr, &debugPipeline_),
+          "Failed to create debug wireframe pipeline");
 
   vkDestroyShaderModule(device_, fragModule, nullptr);
   vkDestroyShaderModule(device_, vertModule, nullptr);
@@ -1874,6 +1887,33 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer commandBuffer,
                      mesh.vertexOffset, 0);
   }
 
+  // Debug wireframe overlay (rendered when debug is enabled)
+  if (debugOverlayEnabled_ && !debugEntities_.empty()) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      debugPipeline_);
+    // viewport/scissor already set, vertex/index buffers already bound
+    for (size_t i = 0; i < debugEntities_.size(); i++) {
+      const auto &ent = debugEntities_[i];
+      if (!ent.active)
+        continue;
+
+      const MeshData &mesh = meshes_[ent.meshId];
+
+      VkDescriptorSet matSet = materials_[mesh.materialId].descriptorSet;
+      vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipelineLayout_, 1, 1, &matSet, 0, nullptr);
+
+      PushConstantData pc{};
+      pc.model = ent.transform;
+      vkCmdPushConstants(commandBuffer, pipelineLayout_,
+                         VK_SHADER_STAGE_VERTEX_BIT, 0,
+                         sizeof(PushConstantData), &pc);
+
+      vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, mesh.indexOffset,
+                       mesh.vertexOffset, 0);
+    }
+  }
+
   // UI overlay (rendered on top of 3D scene, within same render pass)
   if (debugOverlayEnabled_ && uiVertexCount_ > 0) {
     recordUICommands(commandBuffer);
@@ -2016,6 +2056,55 @@ int VulkanRenderer::getActiveEntityCount() const {
       count++;
   }
   return count;
+}
+
+// ---------------------------------------------------------------------------
+// Debug wireframe entity API
+// ---------------------------------------------------------------------------
+
+int VulkanRenderer::createDebugEntity(int meshId) {
+  if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) {
+    std::cerr << "Invalid mesh ID for debug entity: " << meshId << std::endl;
+    return -1;
+  }
+
+  EntityData ent{};
+  ent.meshId = meshId;
+  ent.transform = glm::mat4(1.0f);
+  ent.active = true;
+
+  int entityId;
+  if (!freeDebugEntitySlots_.empty()) {
+    entityId = freeDebugEntitySlots_.back();
+    freeDebugEntitySlots_.pop_back();
+    debugEntities_[entityId] = ent;
+  } else {
+    entityId = static_cast<int>(debugEntities_.size());
+    debugEntities_.push_back(ent);
+  }
+
+  return entityId;
+}
+
+void VulkanRenderer::setDebugEntityTransform(int entityId,
+                                             const float *mat4x4) {
+  if (entityId < 0 || entityId >= static_cast<int>(debugEntities_.size()) ||
+      !debugEntities_[entityId].active) {
+    return;
+  }
+  memcpy(&debugEntities_[entityId].transform, mat4x4, sizeof(float) * 16);
+}
+
+void VulkanRenderer::removeDebugEntity(int entityId) {
+  if (entityId < 0 || entityId >= static_cast<int>(debugEntities_.size()))
+    return;
+  debugEntities_[entityId].active = false;
+  freeDebugEntitySlots_.push_back(entityId);
+}
+
+void VulkanRenderer::clearDebugEntities() {
+  debugEntities_.clear();
+  freeDebugEntitySlots_.clear();
 }
 
 // ---------------------------------------------------------------------------

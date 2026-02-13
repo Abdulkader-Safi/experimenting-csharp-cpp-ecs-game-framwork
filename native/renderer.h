@@ -223,6 +223,12 @@ public:
   void setDebugOverlay(bool enabled);
   int getActiveEntityCount() const;
 
+  // Debug wireframe entities (rendered only when debug overlay is on)
+  int createDebugEntity(int meshId);
+  void setDebugEntityTransform(int entityId, const float *mat4x4);
+  void removeDebugEntity(int entityId);
+  void clearDebugEntities();
+
 private:
   // Window
   GLFWwindow *window_ = nullptr;
@@ -299,6 +305,11 @@ private:
   // Entities
   std::vector<EntityData> entities_;
   std::vector<int> freeEntitySlots_;
+
+  // Debug wireframe pipeline + entities
+  VkPipeline debugPipeline_ = VK_NULL_HANDLE;
+  std::vector<EntityData> debugEntities_;
+  std::vector<int> freeDebugEntitySlots_;
 
   // Legacy compat
   float rotX_ = 0.0f, rotY_ = 0.0f, rotZ_ = 0.0f;

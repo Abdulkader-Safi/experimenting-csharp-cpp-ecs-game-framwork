@@ -168,6 +168,35 @@ world.AddComponent(entity, new Rigidbody {
 | `BodyId`         | Assigned by Jolt after body creation                                  |
 | `BodyCreated`    | Set to `true` once the physics body exists                            |
 
+### Color
+
+A utility class for representing RGBA colors. Used by `Collider.DebugColor` and available for custom components.
+
+```csharp
+// From float values (alpha defaults to 1.0)
+new Color(1f, 0.5f, 0f)
+new Color(1f, 0f, 0f, 0.5f)  // with alpha
+
+// From hex string (#RRGGBB or #RRGGBBAA)
+new Color("#ff6600")
+new Color("#ff660080")  // with alpha
+
+// Presets
+Color.Green   // (0, 1, 0)
+Color.Red     // (1, 0, 0)
+Color.Blue    // (0, 0, 1)
+Color.Yellow  // (1, 1, 0)
+Color.Cyan    // (0, 1, 1)
+Color.White   // (1, 1, 1)
+```
+
+| Field | Description                      |
+| ----- | -------------------------------- |
+| `R`   | Red channel (0.0 - 1.0)         |
+| `G`   | Green channel (0.0 - 1.0)       |
+| `B`   | Blue channel (0.0 - 1.0)        |
+| `A`   | Alpha channel (0.0 - 1.0)       |
+
 ### Collider
 
 Defines the collision shape. Used together with `Rigidbody` and `Transform`.
@@ -175,7 +204,8 @@ Defines the collision shape. Used together with `Rigidbody` and `Transform`.
 ```csharp
 world.AddComponent(entity, new Collider {
     ShapeType = Collider.Box,
-    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f
+    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f,
+    DebugColor = Color.Red
 });
 ```
 
@@ -189,6 +219,7 @@ world.AddComponent(entity, new Collider {
 | `PlaneNormalX/Y/Z` | Plane normal direction (default `0, 1, 0`)                    |
 | `PlaneDistance`   | Plane offset along normal (default `0`)                         |
 | `PlaneHalfExtent` | Plane size (default `100`)                                     |
+| `DebugColor`      | Wireframe color for debug overlay (default `Color.Green`). Accepts `Color` presets, float values, or hex strings |
 
 ## Writing Custom Components
 

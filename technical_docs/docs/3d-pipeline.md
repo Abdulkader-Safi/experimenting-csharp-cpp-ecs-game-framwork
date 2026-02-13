@@ -5,15 +5,18 @@
 The 3D pipeline uses two descriptor sets:
 
 **Set 0** (per-frame, shared across all entities):
+
 - Binding 0: `VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER` — `UniformBufferObject` (view/proj matrices), vertex stage
 - Binding 1: `VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER` — `LightUBO` (camera pos + up to 8 lights), fragment stage
 
 **Set 1** (per-material):
+
 - Binding 0: `VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER` — base color texture, fragment stage
 
 ## Graphics Pipeline State
 
 Created in `createGraphicsPipeline()`:
+
 - **Vertex input**: `Vertex` binding (pos, normal, color, uv) — 4 attribute descriptions
 - **Topology**: `TRIANGLE_LIST`
 - **Rasterizer**: fill mode, 1.0 line width, `BACK` culling, `COUNTER_CLOCKWISE` front face
@@ -36,6 +39,7 @@ pushConstantRange.size = sizeof(PushConstantData); // 64 bytes
 ## Pipeline Layout
 
 Two descriptor set layouts + one push constant range:
+
 ```
 Set 0: [UBO (view/proj), LightUBO]
 Set 1: [Material texture sampler]
@@ -77,6 +81,7 @@ void main() {
 ```
 
 Key points:
+
 - Normal transform: `mat3(transpose(inverse(model)))` handles non-uniform scaling correctly
 - World position is passed to fragment shader for per-fragment lighting
 - Projection already has Y-flip applied on CPU side (`proj[1][1] *= -1`)
@@ -86,11 +91,13 @@ Key points:
 The fragment shader implements Blinn-Phong shading with up to 8 dynamic lights.
 
 The `calcLight()` function handles all three light types:
+
 - **Directional**: no attenuation, uses `normalize(-direction)` as light direction
 - **Point**: distance-based quadratic attenuation `(1 - d^2/r^2)^2`, position-relative direction
 - **Spot**: same as point + cone falloff `clamp((theta - outerCone) / (innerCone - outerCone))`
 
 Lighting equation per light:
+
 ```
 diffuse  = max(dot(N, L), 0.0)
 specular = pow(max(dot(N, H), 0.0), 32.0)   // H = normalize(L + V)
@@ -102,6 +109,21 @@ Final color = `ambient + sum(baseColor * calcLight(light[i]))` where `ambient = 
 If `numLights == 0`, falls back to a hardcoded directional light at `(1, 1, 1)` with 0.15 ambient.
 
 Texture sampling: `texture(baseColorTex, fragUV).rgb * fragColor` — the texture color is multiplied by the vertex color.
+
+## Debug Wireframe Pipeline
+
+A second pipeline (`debugPipeline_`) is created at the end of `createGraphicsPipeline()` by modifying the rasterizer and depth-stencil state:
+
+| Setting       | 3D Pipeline             | Debug Wireframe Pipeline      |
+| ------------- | ----------------------- | ----------------------------- |
+| Polygon mode  | `VK_POLYGON_MODE_FILL`  | `VK_POLYGON_MODE_LINE`        |
+| Cull mode     | `VK_CULL_MODE_BACK_BIT` | `VK_CULL_MODE_NONE`           |
+| Depth write   | `VK_TRUE`               | `VK_FALSE`                    |
+| Depth compare | `VK_COMPARE_OP_LESS`    | `VK_COMPARE_OP_LESS_OR_EQUAL` |
+
+The wireframe pipeline shares the same shaders, pipeline layout, vertex format, and vertex/index buffers as the 3D pipeline. It requires the `fillModeNonSolid` device feature, which is enabled during logical device creation.
+
+Debug entities are stored in a separate `debugEntities_` vector and rendered between the main 3D entities and the UI overlay in `recordCommandBuffer()`.
 
 :::tip Where to Edit
 **Adding a new uniform**: Add the field to the UBO struct in `renderer.h` (with correct `alignas`), update the matching GLSL `uniform` block, and ensure the buffer size matches.

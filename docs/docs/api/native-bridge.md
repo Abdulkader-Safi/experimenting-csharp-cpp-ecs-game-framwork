@@ -147,3 +147,23 @@ int count = NativeBridge.GetEntityCount();  // active entities in renderer
 | `GetEntityCount()`      | `int`   | Number of active entities in the C++ renderer            |
 
 The overlay is managed by `DebugOverlaySystem` which toggles it via the F3 key. See [Debug Overlay](../features/debug-overlay.md) for details.
+
+## Debug Wireframe Entities
+
+Debug entities are rendered as wireframes using a separate Vulkan pipeline (`VK_POLYGON_MODE_LINE`). They are only drawn when the debug overlay is enabled.
+
+```csharp
+int debugId = NativeBridge.CreateDebugEntity(meshId);
+NativeBridge.SetDebugEntityTransform(debugId, float[16] matrix);
+NativeBridge.RemoveDebugEntity(debugId);
+NativeBridge.ClearDebugEntities();  // remove all debug entities
+```
+
+| Method                                | Returns | Description                                     |
+| ------------------------------------- | ------- | ----------------------------------------------- |
+| `CreateDebugEntity(meshId)`           | `int`   | Create a wireframe draw slot for a mesh         |
+| `SetDebugEntityTransform(id, matrix)` | `void`  | Set 4x4 model matrix (column-major `float[16]`) |
+| `RemoveDebugEntity(id)`               | `void`  | Destroy a single debug draw slot                |
+| `ClearDebugEntities()`                | `void`  | Destroy all debug draw slots at once            |
+
+These are used by `DebugColliderRenderSystem` to visualize physics collider shapes. See [Debug Overlay](../features/debug-overlay.md) for details.

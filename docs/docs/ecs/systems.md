@@ -90,6 +90,19 @@ No query — reads key state and calls `NativeBridge.SetDebugOverlay()`.
 
 Toggles the debug overlay on/off when the **F3** key is pressed (edge-detected). Each press flips `GameConstants.Debug` and syncs the state to the C++ renderer. See [Debug Overlay](../features/debug-overlay.md) for details on what the overlay displays.
 
+### DebugColliderRenderSystem
+
+Queries: `Collider` + `Transform`
+
+Creates and syncs wireframe debug entities that visualize physics collider shapes. Only active when `GameConstants.Debug` is `true`. Wireframe color is determined by each collider's `DebugColor` field (defaults to green).
+
+- When debug is enabled, creates a wireframe mesh matching each collider's shape and `DebugColor` (box, sphere, capsule, cylinder — planes are skipped) and registers it as a debug renderer entity
+- Each frame, updates the debug entity transforms to match the collider's current position and rotation
+- When debug is disabled, calls `NativeBridge.ClearDebugEntities()` and clears tracking state
+- Automatically removes debug entities for despawned ECS entities
+
+Debug entities use a separate renderer pipeline (`VK_POLYGON_MODE_LINE`) and are only drawn when the debug overlay is active. See [Debug Overlay](../features/debug-overlay.md) for full details.
+
 ### RenderSyncSystem
 
 Queries: `Transform` + `MeshComponent`
@@ -110,6 +123,7 @@ world.AddSystem(Systems.CameraFollowSystem);          // updates camera from inp
 world.AddSystem(Systems.LightSyncSystem);             // syncs lights to GPU
 world.AddSystem(Systems.HierarchyTransformSystem);    // compute world transforms
 world.AddSystem(Systems.DebugOverlaySystem);          // F3 toggle, syncs overlay state
+world.AddSystem(Systems.DebugColliderRenderSystem);   // wireframe collider visualization
 world.AddSystem(Systems.RenderSyncSystem);            // runs last — syncs transforms
 ```
 
@@ -157,6 +171,7 @@ world.AddSystem(Systems.CameraFollowSystem);
 world.AddSystem(Systems.LightSyncSystem);
 world.AddSystem(Systems.HierarchyTransformSystem);
 world.AddSystem(Systems.DebugOverlaySystem);
+world.AddSystem(Systems.DebugColliderRenderSystem);
 world.AddSystem(Systems.RenderSyncSystem);  // always last
 ```
 

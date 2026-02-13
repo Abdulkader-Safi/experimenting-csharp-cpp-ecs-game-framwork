@@ -481,6 +481,93 @@ namespace ECS
             rz = (float)(Math.Atan2(siny, cosy) * 180.0 / Math.PI);
         }
 
+        // Debug collider visualization — tracks debug renderer entity IDs per ECS entity
+        private static Dictionary<int, int> debugColliderEntities_ = new Dictionary<int, int>();
+        private static Dictionary<int, int> debugColliderMeshes_ = new Dictionary<int, int>();
+        private static bool wasDebugOn_ = false;
+
+        public static void DebugColliderRenderSystem(World world)
+        {
+            bool debugOn = GameConstants.Debug;
+
+            // Turning off: clear all debug entities
+            if (!debugOn && wasDebugOn_)
+            {
+                NativeBridge.ClearDebugEntities();
+                debugColliderEntities_.Clear();
+                debugColliderMeshes_.Clear();
+            }
+            wasDebugOn_ = debugOn;
+
+            if (!debugOn) return;
+
+            List<int> entities = world.Query(typeof(Collider), typeof(Transform));
+
+            // Remove debug entities for ECS entities that no longer exist
+            List<int> toRemove = new List<int>();
+            foreach (var kvp in debugColliderEntities_)
+            {
+                if (!world.IsAlive(kvp.Key))
+                    toRemove.Add(kvp.Key);
+            }
+            foreach (int id in toRemove)
+            {
+                NativeBridge.RemoveDebugEntity(debugColliderEntities_[id]);
+                debugColliderEntities_.Remove(id);
+                debugColliderMeshes_.Remove(id);
+            }
+
+            foreach (int e in entities)
+            {
+                var col = world.GetComponent<Collider>(e);
+                var tr = world.GetComponent<Transform>(e);
+
+                // Skip planes (too large to render meaningfully)
+                if (col.ShapeType == Collider.Plane) continue;
+
+                // Create debug entity if not tracked
+                if (!debugColliderEntities_.ContainsKey(e))
+                {
+                    int meshId = CreateColliderMesh(col, col.DebugColor);
+                    if (meshId < 0) continue;
+
+                    int debugId = NativeBridge.CreateDebugEntity(meshId);
+                    if (debugId < 0) continue;
+
+                    debugColliderEntities_[e] = debugId;
+                    debugColliderMeshes_[e] = meshId;
+                }
+
+                // Compute transform: position from Transform, scale from collider dimensions
+                float[] matrix = tr.ToMatrix();
+                NativeBridge.SetDebugEntityTransform(debugColliderEntities_[e], matrix);
+            }
+        }
+
+        private static int CreateColliderMesh(Collider col, Color c)
+        {
+            switch (col.ShapeType)
+            {
+                case Collider.Box:
+                    return NativeBridge.CreateBoxMesh(
+                        col.BoxHalfX * 2f, col.BoxHalfY * 2f, col.BoxHalfZ * 2f,
+                        c.R, c.G, c.B);
+                case Collider.Sphere:
+                    return NativeBridge.CreateSphereMesh(
+                        col.SphereRadius, 16, 8, c.R, c.G, c.B);
+                case Collider.Capsule:
+                    return NativeBridge.CreateCapsuleMesh(
+                        col.CapsuleRadius, col.CapsuleHalfHeight * 2f, 16, 8,
+                        c.R, c.G, c.B);
+                case Collider.Cylinder:
+                    return NativeBridge.CreateCylinderMesh(
+                        col.CylinderRadius, col.CylinderHalfHeight * 2f, 16,
+                        c.R, c.G, c.B);
+                default:
+                    return -1;
+            }
+        }
+
         public static void RenderSyncSystem(World world)
         {
             List<int> entities = world.Query(typeof(Transform), typeof(MeshComponent));

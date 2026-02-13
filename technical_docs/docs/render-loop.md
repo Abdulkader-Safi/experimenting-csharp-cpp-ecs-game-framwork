@@ -32,7 +32,13 @@ vkCmdBeginRenderPass (clear color: 0.1, 0.1, 0.12, depth: 1.0)
   │   ├─ Bind descriptor set 1 (material texture)
   │   ├─ Push constants (model matrix)
   │   └─ vkCmdDrawIndexed(indexCount, 1, indexOffset, vertexOffset, 0)
-  ├─ [If debug overlay enabled and has vertices]:
+  ├─ [If debug overlay enabled and debug entities exist]:
+  │   ├─ Bind debug wireframe pipeline (VK_POLYGON_MODE_LINE)
+  │   └─ For each active debug entity:
+  │       ├─ Bind descriptor set 1 (material texture)
+  │       ├─ Push constants (model matrix)
+  │       └─ vkCmdDrawIndexed(...)
+  ├─ [If debug overlay enabled and has UI vertices]:
   │   └─ recordUICommands() (see UI Pipeline page)
   └─ vkCmdEndRenderPass
 vkEndCommandBuffer
@@ -77,6 +83,22 @@ Sets `active = false` and pushes the ID onto `freeEntitySlots_` for reuse. Does 
 ### getActiveEntityCount()
 
 Iterates all entities and counts active ones. Used by the debug overlay.
+
+## Debug Wireframe Entities
+
+Debug entities are stored in a separate `debugEntities_` vector (with its own `freeDebugEntitySlots_` free list) and are only rendered when `debugOverlayEnabled_` is true. They use the `debugPipeline_` — a wireframe variant of the 3D pipeline.
+
+### createDebugEntity(meshId) / removeDebugEntity(entityId)
+
+Same slot-reuse pattern as regular entities. Creates/removes entries in `debugEntities_`.
+
+### setDebugEntityTransform(entityId, float\* mat4x4)
+
+Same `memcpy` pattern as regular entities.
+
+### clearDebugEntities()
+
+Clears both `debugEntities_` and `freeDebugEntitySlots_`. Called when the debug overlay is toggled off.
 
 ## Camera
 
