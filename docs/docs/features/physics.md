@@ -31,16 +31,16 @@ world.AddComponent(entity, new Rigidbody {
 });
 ```
 
-| Field            | Default   | Description                                             |
-| ---------------- | --------- | ------------------------------------------------------- |
-| `MotionType`     | `Dynamic` | `Static` (immovable), `Kinematic` (scripted), `Dynamic` |
-| `Friction`       | `0.5`     | Surface friction coefficient                            |
-| `Restitution`    | `0.3`     | Bounciness (0 = no bounce, 1 = perfectly elastic)       |
-| `LinearDamping`  | `0.05`    | Velocity decay per second                               |
-| `AngularDamping` | `0.05`    | Angular velocity decay per second                       |
-| `GravityFactor`  | `1.0`     | Gravity multiplier (0 = no gravity, 2 = double gravity) |
-| `BodyId`         | `0`       | Set automatically after Jolt body creation              |
-| `BodyCreated`    | `false`   | Set to `true` once the Jolt body has been created       |
+| Field            | Default   | Description                                                         |
+| ---------------- | --------- | ------------------------------------------------------------------- |
+| `MotionType`     | `Dynamic` | `Static` (immovable), `Kinematic` (scripted), `Dynamic`             |
+| `Friction`       | `0.5`     | Surface friction coefficient                                        |
+| `Restitution`    | `0.3`     | Bounciness (0 = no bounce, 1 = perfectly elastic)                   |
+| `LinearDamping`  | `0.05`    | Velocity decay per second                                           |
+| `AngularDamping` | `0.05`    | Angular velocity decay per second                                   |
+| `GravityFactor`  | `1.0`     | Gravity multiplier (0 = no gravity, 2 = double gravity)             |
+| `_BodyId`        | `0`       | Set automatically after Jolt body creation (engine-internal)        |
+| `_BodyCreated`   | `false`   | Set to `true` once the Jolt body has been created (engine-internal) |
 
 ### Collider
 
@@ -49,30 +49,30 @@ Defines the shape used for collision detection.
 ```csharp
 // Box collider
 world.AddComponent(entity, new Collider {
-    ShapeType = Collider.Box,
-    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f
+    Shape = ShapeType.Box,
+    BoxHalfExtents = new Vec3(0.5f, 0.5f, 0.5f)
 });
 
 // Sphere collider
 world.AddComponent(entity, new Collider {
-    ShapeType = Collider.Sphere,
+    Shape = ShapeType.Sphere,
     SphereRadius = 0.5f
 });
 
 // Infinite ground plane
 world.AddComponent(entity, new Collider {
-    ShapeType = Collider.Plane,
+    Shape = ShapeType.Plane,
     PlaneHalfExtent = 100f
 });
 ```
 
-| Shape    | Constant            | Parameters                                             |
-| -------- | ------------------- | ------------------------------------------------------ |
-| Box      | `Collider.Box`      | `BoxHalfX/Y/Z` (half-extents)                          |
-| Sphere   | `Collider.Sphere`   | `SphereRadius`                                         |
-| Capsule  | `Collider.Capsule`  | `CapsuleHalfHeight`, `CapsuleRadius`                   |
-| Cylinder | `Collider.Cylinder` | `CylinderHalfHeight`, `CylinderRadius`                 |
-| Plane    | `Collider.Plane`    | `PlaneNormalX/Y/Z`, `PlaneDistance`, `PlaneHalfExtent` |
+| Shape    | Enum Value           | Parameters                                               |
+| -------- | -------------------- | -------------------------------------------------------- |
+| Box      | `ShapeType.Box`      | `BoxHalfExtents` (Vec3, half-extents)                    |
+| Sphere   | `ShapeType.Sphere`   | `SphereRadius`                                           |
+| Capsule  | `ShapeType.Capsule`  | `CapsuleHalfHeight`, `CapsuleRadius`                     |
+| Cylinder | `ShapeType.Cylinder` | `CylinderHalfHeight`, `CylinderRadius`                   |
+| Plane    | `ShapeType.Plane`    | `PlaneNormal` (Vec3), `PlaneDistance`, `PlaneHalfExtent` |
 
 ## PhysicsSystem
 
@@ -95,29 +95,19 @@ Physics runs at a fixed 1/60s (60 Hz) rate regardless of the rendering frame rat
 
 ```csharp
 // Static ground plane
-int ground = world.Spawn();
-world.AddComponent(ground, new Transform { Y = -1f });
-world.AddComponent(ground, new Rigidbody {
-    MotionType = JPH_MotionType.Static,
-    Friction = 0.8f
-});
-world.AddComponent(ground, new Collider {
-    ShapeType = Collider.Plane,
-    PlaneHalfExtent = 100f
-});
+int ground = world.Spawn(
+    new Transform { Position = new Vec3(0f, -1f, 0f) },
+    new Rigidbody { MotionType = JPH_MotionType.Static, Friction = 0.8f },
+    new Collider { Shape = ShapeType.Plane, PlaneHalfExtent = 100f }
+);
 
 // Dynamic box that falls under gravity
-int boxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, 0.9f, 0.2f, 0.2f);
-int box = world.Spawn();
-world.AddComponent(box, new Transform { Y = 5f });
-world.AddComponent(box, new MeshComponent {
-    MeshId = boxMesh,
-    RendererEntityId = NativeBridge.CreateEntity(boxMesh)
-});
+int boxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, new Color(0.9f, 0.2f, 0.2f));
+int box = world.SpawnMeshEntity(boxMesh, new Transform { Position = new Vec3(0f, 5f, 0f) });
 world.AddComponent(box, new Rigidbody { Friction = 0.5f, Restitution = 0.3f });
 world.AddComponent(box, new Collider {
-    ShapeType = Collider.Box,
-    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f
+    Shape = ShapeType.Box,
+    BoxHalfExtents = new Vec3(0.5f, 0.5f, 0.5f)
 });
 ```
 
@@ -138,8 +128,8 @@ Physics bodies are automatically cleaned up:
 Press **F3** to toggle the debug overlay, which draws wireframe outlines around all physics colliders. Each collider's wireframe color is configurable via the `DebugColor` field (defaults to green). This makes it easy to verify collider placement, size, and alignment with visual meshes. See [Debug Overlay](./debug-overlay.md) for details.
 
 ```csharp
-new Collider { ShapeType = Collider.Box, DebugColor = Color.Red }
-new Collider { ShapeType = Collider.Capsule, DebugColor = new Color("#00ffcc") }
+new Collider { Shape = ShapeType.Box, DebugColor = Color.Red }
+new Collider { Shape = ShapeType.Capsule, DebugColor = new Color("#00ffcc") }
 ```
 
 Supported shapes: box, sphere, capsule, cylinder. Plane colliders are skipped (too large to render meaningfully).

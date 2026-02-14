@@ -2,6 +2,79 @@
 
 A component is any C# class that holds data, not behavior. Components must be reference types (classes, not structs). All built-in components live in `managed/Components.cs`.
 
+## Utility Types
+
+### Vec3
+
+A 3D vector used for positions, rotations, directions, and sizes throughout the API.
+
+```csharp
+new Vec3()                // (0, 0, 0)
+new Vec3(1f, 2f, 3f)     // (1, 2, 3)
+```
+
+| Field | Description         |
+| ----- | ------------------- |
+| `X`   | X component (float) |
+| `Y`   | Y component (float) |
+| `Z`   | Z component (float) |
+
+### Color
+
+A utility class for representing RGBA colors. Used by `Light.LightColor`, `Collider.DebugColor`, and procedural mesh creation.
+
+```csharp
+// From float values (alpha defaults to 1.0)
+new Color(1f, 0.5f, 0f)
+new Color(1f, 0f, 0f, 0.5f)  // with alpha
+
+// From hex string (#RRGGBB or #RRGGBBAA)
+new Color("#ff6600")
+new Color("#ff660080")  // with alpha
+
+// Presets
+Color.Green   // (0, 1, 0)
+Color.Red     // (1, 0, 0)
+Color.Blue    // (0, 0, 1)
+Color.Yellow  // (1, 1, 0)
+Color.Cyan    // (0, 1, 1)
+Color.White   // (1, 1, 1)
+```
+
+| Field | Description               |
+| ----- | ------------------------- |
+| `R`   | Red channel (0.0 - 1.0)   |
+| `G`   | Green channel (0.0 - 1.0) |
+| `B`   | Blue channel (0.0 - 1.0)  |
+| `A`   | Alpha channel (0.0 - 1.0) |
+
+## Enums
+
+### LightType
+
+```csharp
+LightType.Directional  // 0 — parallel light (sun)
+LightType.Point        // 1 — omnidirectional light
+LightType.Spot         // 2 — cone-shaped light
+```
+
+### ShapeType
+
+```csharp
+ShapeType.Box       // 0
+ShapeType.Sphere    // 1
+ShapeType.Capsule   // 2
+ShapeType.Cylinder  // 3
+ShapeType.Plane     // 4
+```
+
+### CameraMode
+
+```csharp
+CameraMode.ThirdPerson  // 0 — orbit camera (default)
+CameraMode.FirstPerson  // 1 — eye-level camera
+```
+
 ## Built-in Components
 
 ### Transform
@@ -10,34 +83,39 @@ Position, rotation (degrees), and scale in 3D space.
 
 ```csharp
 world.AddComponent(entity, new Transform {
-    X = 1.0f, Y = 0.0f, Z = -2.0f,    // position
-    RotX = 0f, RotY = 45f, RotZ = 0f,  // rotation in degrees
-    ScaleX = 1f, ScaleY = 1f, ScaleZ = 1f
+    Position = new Vec3(1f, 0f, -2f),
+    Rotation = new Vec3(0f, 45f, 0f),
+    Scale = new Vec3(1f, 1f, 1f)
 });
 ```
+
+| Field      | Type   | Default     | Description             |
+| ---------- | ------ | ----------- | ----------------------- |
+| `Position` | `Vec3` | `(0, 0, 0)` | World-space position    |
+| `Rotation` | `Vec3` | `(0, 0, 0)` | Euler angles in degrees |
+| `Scale`    | `Vec3` | `(1, 1, 1)` | Per-axis scale          |
 
 `Transform.ToMatrix()` returns a column-major `float[16]` matching GLM's memory layout. The rotation order is Rz _ Ry _ Rx, matching a `glm::rotate` chain of X then Y then Z.
 
 ### MeshComponent
 
-Links an ECS entity to a loaded mesh and a renderer-side entity.
+Links an ECS entity to a loaded mesh and a renderer-side entity. Both fields are engine-internal (prefixed with `_`) — use `world.SpawnMeshEntity()` instead of setting them directly.
 
 ```csharp
-int meshId = NativeBridge.LoadMesh("models/MyModel.glb");
-int rendererEntity = NativeBridge.CreateEntity(meshId);
+// Preferred: use SpawnMeshEntity
+int entity = world.SpawnMeshEntity(meshId, new Transform());
 
-world.AddComponent(entity, new MeshComponent {
-    MeshId = meshId,
-    RendererEntityId = rendererEntity
-});
+// Manual (advanced): fields are engine-internal
+var mc = new MeshComponent();
+// mc._MeshId and mc._RendererEntityId are set by SpawnMeshEntity
 ```
 
-| Field              | Description                                                                       |
-| ------------------ | --------------------------------------------------------------------------------- |
-| `MeshId`           | Returned by `NativeBridge.LoadMesh()`, identifies the geometry data on the GPU    |
-| `RendererEntityId` | Returned by `NativeBridge.CreateEntity()`, identifies a draw slot in the renderer |
+| Field               | Description                                                                       |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `_MeshId`           | Returned by `NativeBridge.LoadMesh()`, identifies the geometry data on the GPU    |
+| `_RendererEntityId` | Returned by `NativeBridge.CreateEntity()`, identifies a draw slot in the renderer |
 
-You can create multiple entities sharing the same `MeshId` (instancing the same geometry).
+You can create multiple entities sharing the same mesh (instancing the same geometry).
 
 ### Movable
 
@@ -55,7 +133,7 @@ Attaches an orbiting camera to an entity. See the [Camera feature page](../featu
 
 ```csharp
 world.AddComponent(entity, new Camera {
-    OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f,
+    Offset = new Vec3(0f, 0f, 3f),
     Yaw = 0f, Pitch = 0f,
     Fov = 45f,
     LookSpeed = 90f,
@@ -63,19 +141,18 @@ world.AddComponent(entity, new Camera {
 });
 ```
 
-| Field                  | Description                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `OffsetX/Y/Z`          | Initial offset vector; its length determines orbit distance (default `0, 0, 3`)      |
-| `Yaw` / `Pitch`        | Orbit angles updated by keyboard and mouse input; pitch clamps to [-89, 89]          |
-| `Fov`                  | Vertical field of view in degrees                                                    |
-| `LookSpeed`            | Degrees per second for keyboard orbit (Q/E/R/F)                                      |
-| `MouseSensitivity`     | Degrees per pixel of mouse movement (default `0.15`)                                 |
-| `Mode`                 | `0` = third-person orbit (default), `1` = first-person                               |
-| `EyeHeight`            | Vertical offset above entity position for first-person eye placement (default `0.8`) |
-| `WasModeTogglePressed` | Internal state for edge-detecting TAB toggle                                         |
-| `MinDistance`          | Minimum zoom distance in third-person mode (default `1`)                             |
-| `MaxDistance`          | Maximum zoom distance in third-person mode (default `20`)                            |
-| `ZoomSpeed`            | Scroll wheel zoom sensitivity (default `2`)                                          |
+| Field              | Description                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `Offset`           | Initial offset vector (`Vec3`); its length determines orbit distance (default `0, 0, 3`) |
+| `Yaw` / `Pitch`    | Orbit angles updated by keyboard and mouse input; pitch clamps to [-89, 89]              |
+| `Fov`              | Vertical field of view in degrees                                                        |
+| `LookSpeed`        | Degrees per second for keyboard orbit (Q/E/R/F)                                          |
+| `MouseSensitivity` | Degrees per pixel of mouse movement (default `0.15`)                                     |
+| `Mode`             | `CameraMode.ThirdPerson` (default) or `CameraMode.FirstPerson`                           |
+| `EyeHeight`        | Vertical offset above entity position for first-person eye placement (default `0.8`)     |
+| `MinDistance`      | Minimum zoom distance in third-person mode (default `1`)                                 |
+| `MaxDistance`      | Maximum zoom distance in third-person mode (default `20`)                                |
+| `ZoomSpeed`        | Scroll wheel zoom sensitivity (default `2`)                                              |
 
 ### Timer
 
@@ -123,10 +200,10 @@ A dynamic light source. See the [Lighting feature page](../features/lighting.md)
 
 ```csharp
 world.AddComponent(entity, new Light {
-    Type = Light.Directional,
-    ColorR = 1f, ColorG = 1f, ColorB = 1f,
+    Type = LightType.Directional,
+    LightColor = Color.White,
     Intensity = 1f,
-    DirX = 0f, DirY = -1f, DirZ = 0f,
+    Direction = new Vec3(0f, -1f, 0f),
     Radius = 10f,
     InnerConeDeg = 12.5f, OuterConeDeg = 17.5f
 });
@@ -134,13 +211,13 @@ world.AddComponent(entity, new Light {
 
 | Field                           | Description                                                     |
 | ------------------------------- | --------------------------------------------------------------- |
-| `Type`                          | `Light.Directional` (0), `Light.Point` (1), or `Light.Spot` (2) |
-| `ColorR/G/B`                    | Light color (default white)                                     |
+| `Type`                          | `LightType.Directional`, `LightType.Point`, or `LightType.Spot` |
+| `LightColor`                    | Light color as a `Color` (default `Color.White`)                |
 | `Intensity`                     | Brightness multiplier                                           |
-| `DirX/Y/Z`                      | Direction vector (for directional and spot lights)              |
+| `Direction`                     | Direction vector as `Vec3` (for directional and spot lights)    |
 | `Radius`                        | Attenuation radius (for point and spot lights)                  |
 | `InnerConeDeg` / `OuterConeDeg` | Cone angles in degrees (for spot lights)                        |
-| `LightIndex`                    | Assigned automatically by `LightSyncSystem`                     |
+| `_LightIndex`                   | Assigned automatically by `LightSyncSystem` (engine-internal)   |
 
 ### Rigidbody
 
@@ -160,42 +237,13 @@ world.AddComponent(entity, new Rigidbody {
 | Field            | Description                                                          |
 | ---------------- | -------------------------------------------------------------------- |
 | `MotionType`     | `JPH_MotionType.Static`, `Kinematic`, or `Dynamic` (default Dynamic) |
-| `Friction`       | Surface friction coefficient (default `0.5`)                          |
-| `Restitution`    | Bounciness (default `0.3`)                                            |
-| `LinearDamping`  | Velocity decay per second (default `0.05`)                            |
-| `AngularDamping` | Angular velocity decay per second (default `0.05`)                    |
-| `GravityFactor`  | Gravity multiplier (default `1.0`)                                    |
-| `BodyId`         | Assigned by Jolt after body creation                                  |
-| `BodyCreated`    | Set to `true` once the physics body exists                            |
-
-### Color
-
-A utility class for representing RGBA colors. Used by `Collider.DebugColor` and available for custom components.
-
-```csharp
-// From float values (alpha defaults to 1.0)
-new Color(1f, 0.5f, 0f)
-new Color(1f, 0f, 0f, 0.5f)  // with alpha
-
-// From hex string (#RRGGBB or #RRGGBBAA)
-new Color("#ff6600")
-new Color("#ff660080")  // with alpha
-
-// Presets
-Color.Green   // (0, 1, 0)
-Color.Red     // (1, 0, 0)
-Color.Blue    // (0, 0, 1)
-Color.Yellow  // (1, 1, 0)
-Color.Cyan    // (0, 1, 1)
-Color.White   // (1, 1, 1)
-```
-
-| Field | Description                      |
-| ----- | -------------------------------- |
-| `R`   | Red channel (0.0 - 1.0)         |
-| `G`   | Green channel (0.0 - 1.0)       |
-| `B`   | Blue channel (0.0 - 1.0)        |
-| `A`   | Alpha channel (0.0 - 1.0)       |
+| `Friction`       | Surface friction coefficient (default `0.5`)                         |
+| `Restitution`    | Bounciness (default `0.3`)                                           |
+| `LinearDamping`  | Velocity decay per second (default `0.05`)                           |
+| `AngularDamping` | Angular velocity decay per second (default `0.05`)                   |
+| `GravityFactor`  | Gravity multiplier (default `1.0`)                                   |
+| `_BodyId`        | Assigned by Jolt after body creation (engine-internal)               |
+| `_BodyCreated`   | Set to `true` once the physics body exists (engine-internal)         |
 
 ### Collider
 
@@ -203,23 +251,34 @@ Defines the collision shape. Used together with `Rigidbody` and `Transform`.
 
 ```csharp
 world.AddComponent(entity, new Collider {
-    ShapeType = Collider.Box,
-    BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f,
+    Shape = ShapeType.Box,
+    BoxHalfExtents = new Vec3(0.5f, 0.5f, 0.5f),
     DebugColor = Color.Red
 });
 ```
 
-| Field             | Description                                                     |
-| ----------------- | --------------------------------------------------------------- |
-| `ShapeType`       | `Collider.Box` (0), `Sphere` (1), `Capsule` (2), `Cylinder` (3), `Plane` (4) |
-| `BoxHalfX/Y/Z`   | Half-extents for box shape (default `0.5`)                      |
-| `SphereRadius`    | Radius for sphere shape (default `0.5`)                         |
-| `CapsuleHalfHeight/Radius` | Capsule dimensions (default `0.5` / `0.3`)             |
-| `CylinderHalfHeight/Radius` | Cylinder dimensions (default `0.5` / `0.5`)           |
-| `PlaneNormalX/Y/Z` | Plane normal direction (default `0, 1, 0`)                    |
-| `PlaneDistance`   | Plane offset along normal (default `0`)                         |
-| `PlaneHalfExtent` | Plane size (default `100`)                                     |
-| `DebugColor`      | Wireframe color for debug overlay (default `Color.Green`). Accepts `Color` presets, float values, or hex strings |
+| Field                       | Description                                                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `Shape`                     | `ShapeType.Box`, `Sphere`, `Capsule`, `Cylinder`, or `Plane`                                                     |
+| `BoxHalfExtents`            | Half-extents for box shape as `Vec3` (default `0.5, 0.5, 0.5`)                                                   |
+| `SphereRadius`              | Radius for sphere shape (default `0.5`)                                                                          |
+| `CapsuleHalfHeight/Radius`  | Capsule dimensions (default `0.5` / `0.3`)                                                                       |
+| `CylinderHalfHeight/Radius` | Cylinder dimensions (default `0.5` / `0.5`)                                                                      |
+| `PlaneNormal`               | Plane normal direction as `Vec3` (default `0, 1, 0`)                                                             |
+| `PlaneDistance`             | Plane offset along normal (default `0`)                                                                          |
+| `PlaneHalfExtent`           | Plane size (default `100`)                                                                                       |
+| `DebugColor`                | Wireframe color for debug overlay (default `Color.Green`). Accepts `Color` presets, float values, or hex strings |
+
+## Internal Fields (Underscore Convention)
+
+Fields prefixed with `_` are engine-managed and should not be set directly by game code:
+
+| Component       | Internal Fields                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `Rigidbody`     | `_BodyId`, `_BodyCreated`                                                                    |
+| `MeshComponent` | `_MeshId`, `_RendererEntityId`                                                               |
+| `Light`         | `_LightIndex`                                                                                |
+| `Camera`        | `_LastMouseX`, `_LastMouseY`, `_MouseInitialized`, `_WasEscPressed`, `_WasModeTogglePressed` |
 
 ## Writing Custom Components
 
@@ -236,7 +295,7 @@ namespace ECS
 
     public class Velocity
     {
-        public float VX = 0f, VY = 0f, VZ = 0f;
+        public Vec3 Value = new Vec3();
     }
 
     public class Enemy
@@ -249,12 +308,10 @@ namespace ECS
 Then attach them to entities:
 
 ```csharp
-int goblin = world.Spawn();
-world.AddComponent(goblin, new Transform { X = 5f });
-world.AddComponent(goblin, new Health { Current = 50f, Max = 50f });
-world.AddComponent(goblin, new Enemy { AggroRange = 3f });
-world.AddComponent(goblin, new MeshComponent {
-    MeshId = goblinMeshId,
-    RendererEntityId = NativeBridge.CreateEntity(goblinMeshId)
-});
+int goblin = world.Spawn(
+    new Transform { Position = new Vec3(5f, 0f, 0f) },
+    new Health { Current = 50f, Max = 50f },
+    new Enemy { AggroRange = 3f }
+);
+world.AddComponent(goblin, new MeshComponent()); // or use SpawnMeshEntity
 ```

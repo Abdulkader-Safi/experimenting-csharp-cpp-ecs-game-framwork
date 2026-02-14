@@ -11,13 +11,25 @@ int enemy = world.Spawn();
 
 Each call to `Spawn()` returns a unique integer ID.
 
+### Variadic Spawn
+
+You can spawn an entity and attach components in a single call:
+
+```csharp
+int enemy = world.Spawn(
+    new Transform { Position = new Vec3(5f, 0f, 0f) },
+    new Health { Current = 50f, Max = 50f },
+    new Enemy()
+);
+```
+
 ### SpawnMeshEntity
 
 For entities that need a mesh, `SpawnMeshEntity` creates the entity, attaches a `Transform` and `MeshComponent`, and registers it with the native renderer in one call:
 
 ```csharp
 int meshId = NativeBridge.LoadMesh("models/Box.glb");
-int box = world.SpawnMeshEntity(meshId, new Transform { X = 2f });
+int box = world.SpawnMeshEntity(meshId, new Transform { Position = new Vec3(2f, 0f, 0f) });
 ```
 
 ## Destroying Entities
@@ -46,7 +58,9 @@ int meshId = NativeBridge.LoadMesh("models/Box.glb");
 
 for (int i = 0; i < 10; i++)
 {
-    int e = world.SpawnMeshEntity(meshId, new Transform { X = i * 2f });
+    int e = world.SpawnMeshEntity(meshId, new Transform {
+        Position = new Vec3(i * 2f, 0f, 0f)
+    });
 }
 ```
 

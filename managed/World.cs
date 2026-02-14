@@ -41,10 +41,10 @@ namespace ECS
 
             // Clean up native renderer entity if this entity has a mesh
             var mc = GetComponent<MeshComponent>(entity);
-            if (mc != null && mc.RendererEntityId >= 0)
+            if (mc != null && mc._RendererEntityId >= 0)
             {
-                NativeBridge.RemoveEntity(mc.RendererEntityId);
-                mc.RendererEntityId = -1;
+                NativeBridge.RemoveEntity(mc._RendererEntityId);
+                mc._RendererEntityId = -1;
             }
 
             // Cascade-delete children
@@ -79,8 +79,8 @@ namespace ECS
             AddComponent(entity, transform);
             var mc = new MeshComponent
             {
-                MeshId = meshId,
-                RendererEntityId = NativeBridge.CreateEntity(meshId)
+                _MeshId = meshId,
+                _RendererEntityId = NativeBridge.CreateEntity(meshId)
             };
             AddComponent(entity, mc);
             return entity;
@@ -96,6 +96,26 @@ namespace ECS
                 components_[key] = store;
             }
             store[entity] = component;
+        }
+
+        public void AddComponent(int entity, object component)
+        {
+            string key = component.GetType().FullName;
+            Dictionary<int, object> store;
+            if (!components_.TryGetValue(key, out store))
+            {
+                store = new Dictionary<int, object>();
+                components_[key] = store;
+            }
+            store[entity] = component;
+        }
+
+        public int Spawn(params object[] components)
+        {
+            int id = Spawn();
+            foreach (object c in components)
+                AddComponent(id, c);
+            return id;
         }
 
         public T GetComponent<T>(int entity) where T : class

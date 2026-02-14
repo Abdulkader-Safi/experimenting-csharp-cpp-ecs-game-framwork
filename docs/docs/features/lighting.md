@@ -9,14 +9,15 @@ The engine supports up to 8 dynamic lights using Blinn-Phong shading. Lights are
 A light that shines in a single direction from infinitely far away (like the sun). Position is ignored; only direction matters.
 
 ```csharp
-int sun = world.Spawn();
-world.AddComponent(sun, new Transform());
-world.AddComponent(sun, new Light {
-    Type = Light.Directional,
-    DirX = 0.2f, DirY = -1f, DirZ = 0.3f,
-    ColorR = 1f, ColorG = 0.95f, ColorB = 0.8f,
-    Intensity = 1.0f
-});
+int sun = world.Spawn(
+    new Transform(),
+    new Light {
+        Type = LightType.Directional,
+        Direction = new Vec3(0.2f, -1f, 0.3f),
+        LightColor = new Color(1f, 0.95f, 0.8f),
+        Intensity = 1.0f
+    }
+);
 ```
 
 ### Point Light
@@ -24,14 +25,15 @@ world.AddComponent(sun, new Light {
 A light that emits in all directions from a position. Attenuates with distance based on `Radius`.
 
 ```csharp
-int torch = world.Spawn();
-world.AddComponent(torch, new Transform { X = 2f, Y = 3f, Z = -1f });
-world.AddComponent(torch, new Light {
-    Type = Light.Point,
-    ColorR = 1f, ColorG = 0.6f, ColorB = 0.2f,
-    Intensity = 2.0f,
-    Radius = 15f
-});
+int torch = world.Spawn(
+    new Transform { Position = new Vec3(2f, 3f, -1f) },
+    new Light {
+        Type = LightType.Point,
+        LightColor = new Color(1f, 0.6f, 0.2f),
+        Intensity = 2.0f,
+        Radius = 15f
+    }
+);
 ```
 
 ### Spot Light
@@ -39,17 +41,18 @@ world.AddComponent(torch, new Light {
 A cone-shaped light from a position in a direction. Uses inner and outer cone angles for smooth falloff.
 
 ```csharp
-int spotlight = world.Spawn();
-world.AddComponent(spotlight, new Transform { X = 0f, Y = 5f, Z = 0f });
-world.AddComponent(spotlight, new Light {
-    Type = Light.Spot,
-    DirX = 0f, DirY = -1f, DirZ = 0f,
-    ColorR = 1f, ColorG = 1f, ColorB = 1f,
-    Intensity = 3.0f,
-    Radius = 20f,
-    InnerConeDeg = 12.5f,
-    OuterConeDeg = 17.5f
-});
+int spotlight = world.Spawn(
+    new Transform { Position = new Vec3(0f, 5f, 0f) },
+    new Light {
+        Type = LightType.Spot,
+        Direction = new Vec3(0f, -1f, 0f),
+        LightColor = Color.White,
+        Intensity = 3.0f,
+        Radius = 20f,
+        InnerConeDeg = 12.5f,
+        OuterConeDeg = 17.5f
+    }
+);
 ```
 
 ## Ambient Light
@@ -68,17 +71,17 @@ The `LightSyncSystem` runs each frame and pushes all `Light` + `Transform` entit
 2. Assigns each light a slot (0-7)
 3. Clears unused slots
 
-Lights beyond slot 7 are ignored. The system automatically manages slot assignment — you don't need to set `LightIndex` manually.
+Lights beyond slot 7 are ignored. The system automatically manages slot assignment — you don't need to set `_LightIndex` manually.
 
 ## Light Properties Reference
 
-| Field          | Type    | Default           | Description                                         |
-| -------------- | ------- | ----------------- | --------------------------------------------------- |
-| `Type`         | `int`   | `Directional` (0) | `Light.Directional`, `Light.Point`, or `Light.Spot` |
-| `ColorR/G/B`   | `float` | `1, 1, 1`         | RGB color                                           |
-| `Intensity`    | `float` | `1`               | Brightness multiplier                               |
-| `DirX/Y/Z`     | `float` | `0, -1, 0`        | Direction (directional and spot)                    |
-| `Radius`       | `float` | `10`              | Attenuation radius (point and spot)                 |
-| `InnerConeDeg` | `float` | `12.5`            | Inner cone angle in degrees (spot only)             |
-| `OuterConeDeg` | `float` | `17.5`            | Outer cone angle in degrees (spot only)             |
-| `LightIndex`   | `int`   | `-1`              | Auto-assigned slot index                            |
+| Field          | Type        | Default                 | Description                                |
+| -------------- | ----------- | ----------------------- | ------------------------------------------ |
+| `Type`         | `LightType` | `LightType.Directional` | `Directional`, `Point`, or `Spot`          |
+| `LightColor`   | `Color`     | `Color.White`           | Light color                                |
+| `Intensity`    | `float`     | `1`                     | Brightness multiplier                      |
+| `Direction`    | `Vec3`      | `(0, -1, 0)`            | Direction (directional and spot)           |
+| `Radius`       | `float`     | `10`                    | Attenuation radius (point and spot)        |
+| `InnerConeDeg` | `float`     | `12.5`                  | Inner cone angle in degrees (spot only)    |
+| `OuterConeDeg` | `float`     | `17.5`                  | Outer cone angle in degrees (spot only)    |
+| `_LightIndex`  | `int`       | `-1`                    | Auto-assigned slot index (engine-internal) |

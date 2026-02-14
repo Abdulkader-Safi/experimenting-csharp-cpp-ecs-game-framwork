@@ -28,19 +28,19 @@ namespace ECS
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_LEFT) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_A))
-                    tr.RotY -= moveStep;
+                    tr.Rotation.Y -= moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_RIGHT) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_D))
-                    tr.RotY += moveStep;
+                    tr.Rotation.Y += moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_UP) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
-                    tr.RotX -= moveStep;
+                    tr.Rotation.X -= moveStep;
 
                 if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_DOWN) ||
                     NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_S))
-                    tr.RotX += moveStep;
+                    tr.Rotation.X += moveStep;
             }
         }
 
@@ -85,7 +85,7 @@ namespace ECS
                     foreach (int e in camEntities)
                     {
                         var cam = world.GetComponent<Camera>(e);
-                        cam.MouseInitialized = false;
+                        cam._MouseInitialized = false;
                     }
                     NativeBridge.ResetScrollOffset();
                 }
@@ -96,19 +96,19 @@ namespace ECS
 
             float dt = world.DeltaTime;
 
-            // ESC toggle cursor lock (edge-detected, reuse entity camera's WasEscPressed for state)
+            // ESC toggle cursor lock (edge-detected, reuse entity camera's _WasEscPressed for state)
             bool escPressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_ESCAPE);
             List<int> cameraEntities = world.Query(typeof(Camera));
             foreach (int e in cameraEntities)
             {
                 var cam = world.GetComponent<Camera>(e);
-                if (escPressed && !cam.WasEscPressed)
+                if (escPressed && !cam._WasEscPressed)
                 {
                     bool locked = NativeBridge.IsCursorLocked();
                     NativeBridge.SetCursorLocked(!locked);
                     FreeCameraState.MouseInitialized = false;
                 }
-                cam.WasEscPressed = escPressed;
+                cam._WasEscPressed = escPressed;
             }
 
             // Mouse look when cursor is locked
@@ -154,37 +154,37 @@ namespace ECS
             // WASD movement
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_W))
             {
-                FreeCameraState.X += fwdX * speed;
-                FreeCameraState.Y += fwdY * speed;
-                FreeCameraState.Z += fwdZ * speed;
+                FreeCameraState.Position.X += fwdX * speed;
+                FreeCameraState.Position.Y += fwdY * speed;
+                FreeCameraState.Position.Z += fwdZ * speed;
             }
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_S))
             {
-                FreeCameraState.X -= fwdX * speed;
-                FreeCameraState.Y -= fwdY * speed;
-                FreeCameraState.Z -= fwdZ * speed;
+                FreeCameraState.Position.X -= fwdX * speed;
+                FreeCameraState.Position.Y -= fwdY * speed;
+                FreeCameraState.Position.Z -= fwdZ * speed;
             }
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_A))
             {
-                FreeCameraState.X -= rightX * speed;
-                FreeCameraState.Z -= rightZ * speed;
+                FreeCameraState.Position.X -= rightX * speed;
+                FreeCameraState.Position.Z -= rightZ * speed;
             }
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_D))
             {
-                FreeCameraState.X += rightX * speed;
-                FreeCameraState.Z += rightZ * speed;
+                FreeCameraState.Position.X += rightX * speed;
+                FreeCameraState.Position.Z += rightZ * speed;
             }
 
             // Q down, E up
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_Q))
-                FreeCameraState.Y -= speed;
+                FreeCameraState.Position.Y -= speed;
             if (NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_E))
-                FreeCameraState.Y += speed;
+                FreeCameraState.Position.Y += speed;
 
             // Set camera: look-at = position + forward direction
             NativeBridge.SetCamera(
-                FreeCameraState.X, FreeCameraState.Y, FreeCameraState.Z,
-                FreeCameraState.X + fwdX, FreeCameraState.Y + fwdY, FreeCameraState.Z + fwdZ,
+                FreeCameraState.Position.X, FreeCameraState.Position.Y, FreeCameraState.Position.Z,
+                FreeCameraState.Position.X + fwdX, FreeCameraState.Position.Y + fwdY, FreeCameraState.Position.Z + fwdZ,
                 0f, 1f, 0f, FreeCameraState.Fov);
         }
 
@@ -200,21 +200,21 @@ namespace ECS
 
                 // ESC toggle cursor lock (edge-detected)
                 bool escPressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_ESCAPE);
-                if (escPressed && !cam.WasEscPressed)
+                if (escPressed && !cam._WasEscPressed)
                 {
                     bool locked = NativeBridge.IsCursorLocked();
                     NativeBridge.SetCursorLocked(!locked);
-                    cam.MouseInitialized = false;
+                    cam._MouseInitialized = false;
                 }
-                cam.WasEscPressed = escPressed;
+                cam._WasEscPressed = escPressed;
 
                 // TAB toggle camera mode (edge-detected)
                 bool tabPressed = NativeBridge.IsKeyPressed(NativeBridge.GLFW_KEY_TAB);
-                if (tabPressed && !cam.WasModeTogglePressed)
+                if (tabPressed && !cam._WasModeTogglePressed)
                 {
-                    cam.Mode = (cam.Mode == 0) ? 1 : 0;
+                    cam.Mode = (cam.Mode == CameraMode.ThirdPerson) ? CameraMode.FirstPerson : CameraMode.ThirdPerson;
                 }
-                cam.WasModeTogglePressed = tabPressed;
+                cam._WasModeTogglePressed = tabPressed;
 
                 // Mouse look when cursor is locked
                 if (NativeBridge.IsCursorLocked())
@@ -222,22 +222,22 @@ namespace ECS
                     double mx, my;
                     NativeBridge.GetCursorPos(out mx, out my);
 
-                    if (!cam.MouseInitialized)
+                    if (!cam._MouseInitialized)
                     {
-                        cam.LastMouseX = mx;
-                        cam.LastMouseY = my;
-                        cam.MouseInitialized = true;
+                        cam._LastMouseX = mx;
+                        cam._LastMouseY = my;
+                        cam._MouseInitialized = true;
                     }
                     else
                     {
-                        double dx = mx - cam.LastMouseX;
-                        double dy = my - cam.LastMouseY;
+                        double dx = mx - cam._LastMouseX;
+                        double dy = my - cam._LastMouseY;
                         cam.Yaw -= (float)dx * cam.MouseSensitivity;
                         cam.Pitch += (float)dy * cam.MouseSensitivity;
                     }
 
-                    cam.LastMouseX = mx;
-                    cam.LastMouseY = my;
+                    cam._LastMouseX = mx;
+                    cam._LastMouseY = my;
                 }
 
                 // Q/E orbit yaw, R/F orbit pitch (always works)
@@ -256,12 +256,12 @@ namespace ECS
                 double yawRad = cam.Yaw * Transform.DegToRad;
                 double pitchRad = cam.Pitch * Transform.DegToRad;
 
-                if (cam.Mode == 1)
+                if (cam.Mode == CameraMode.FirstPerson)
                 {
                     // First-person: eye at entity position + eye height, look in yaw/pitch direction
-                    float eyeX = tr.X;
-                    float eyeY = tr.Y + cam.EyeHeight;
-                    float eyeZ = tr.Z;
+                    float eyeX = tr.Position.X;
+                    float eyeY = tr.Position.Y + cam.EyeHeight;
+                    float eyeZ = tr.Position.Z;
 
                     float dirX = (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
                     float dirY = (float)Math.Sin(pitchRad);
@@ -278,24 +278,24 @@ namespace ECS
                     NativeBridge.GetScrollOffset(out scrollX, out scrollY);
                     NativeBridge.ResetScrollOffset();
 
-                    float dist = (float)Math.Sqrt(cam.OffsetX * cam.OffsetX +
-                                                   cam.OffsetY * cam.OffsetY +
-                                                   cam.OffsetZ * cam.OffsetZ);
+                    float dist = (float)Math.Sqrt(cam.Offset.X * cam.Offset.X +
+                                                   cam.Offset.Y * cam.Offset.Y +
+                                                   cam.Offset.Z * cam.Offset.Z);
                     dist -= scrollY * cam.ZoomSpeed;
                     if (dist < cam.MinDistance) dist = cam.MinDistance;
                     if (dist > cam.MaxDistance) dist = cam.MaxDistance;
 
                     // Store back into offset (along Z for simplicity)
-                    cam.OffsetX = 0f;
-                    cam.OffsetY = 0f;
-                    cam.OffsetZ = dist;
+                    cam.Offset.X = 0f;
+                    cam.Offset.Y = 0f;
+                    cam.Offset.Z = dist;
 
-                    float eyeX = tr.X + dist * (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
-                    float eyeY = tr.Y + dist * (float)Math.Sin(pitchRad);
-                    float eyeZ = tr.Z + dist * (float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
+                    float eyeX = tr.Position.X + dist * (float)(Math.Cos(pitchRad) * Math.Sin(yawRad));
+                    float eyeY = tr.Position.Y + dist * (float)Math.Sin(pitchRad);
+                    float eyeZ = tr.Position.Z + dist * (float)(Math.Cos(pitchRad) * Math.Cos(yawRad));
 
                     NativeBridge.SetCamera(eyeX, eyeY, eyeZ,
-                                           tr.X, tr.Y, tr.Z,
+                                           tr.Position.X, tr.Position.Y, tr.Position.Z,
                                            0f, 1f, 0f, cam.Fov);
                 }
             }
@@ -311,15 +311,15 @@ namespace ECS
                 var light = world.GetComponent<Light>(e);
                 var tr = world.GetComponent<Transform>(e);
 
-                light.LightIndex = slot;
+                light._LightIndex = slot;
 
                 float innerCos = (float)Math.Cos(light.InnerConeDeg * Transform.DegToRad);
                 float outerCos = (float)Math.Cos(light.OuterConeDeg * Transform.DegToRad);
 
-                NativeBridge.SetLight(slot, light.Type,
-                    tr.X, tr.Y, tr.Z,
-                    light.DirX, light.DirY, light.DirZ,
-                    light.ColorR, light.ColorG, light.ColorB, light.Intensity,
+                NativeBridge.SetLight(slot, (int)light.Type,
+                    tr.Position.X, tr.Position.Y, tr.Position.Z,
+                    light.Direction.X, light.Direction.Y, light.Direction.Z,
+                    light.LightColor.R, light.LightColor.G, light.LightColor.B, light.Intensity,
                     light.Radius, innerCos, outerCos);
                 slot++;
             }
@@ -404,7 +404,7 @@ namespace ECS
             foreach (int e in physEntities)
             {
                 var rb = world.GetComponent<Rigidbody>(e);
-                if (rb.BodyCreated) continue;
+                if (rb._BodyCreated) continue;
 
                 var col = world.GetComponent<Collider>(e);
                 var tr = world.GetComponent<Transform>(e);
@@ -412,12 +412,12 @@ namespace ECS
                 IntPtr shape = CreateShape(col);
                 if (shape == IntPtr.Zero) continue;
 
-                rb.BodyId = PhysicsWorld.Instance.CreateBody(
-                    e, shape, tr.X, tr.Y, tr.Z,
+                rb._BodyId = PhysicsWorld.Instance.CreateBody(
+                    e, shape, tr.Position.X, tr.Position.Y, tr.Position.Z,
                     JPH_Quat.Identity, rb.MotionType,
                     rb.Friction, rb.Restitution, rb.LinearDamping,
                     rb.AngularDamping, rb.GravityFactor);
-                rb.BodyCreated = true;
+                rb._BodyCreated = true;
             }
 
             // Phase 2: Step physics simulation
@@ -427,38 +427,38 @@ namespace ECS
             foreach (int e in physEntities)
             {
                 var rb = world.GetComponent<Rigidbody>(e);
-                if (!rb.BodyCreated || rb.MotionType == JPH_MotionType.Static) continue;
-                if (!PhysicsWorld.Instance.IsBodyActive(rb.BodyId)) continue;
+                if (!rb._BodyCreated || rb.MotionType == JPH_MotionType.Static) continue;
+                if (!PhysicsWorld.Instance.IsBodyActive(rb._BodyId)) continue;
 
                 var tr = world.GetComponent<Transform>(e);
 
                 float px, py, pz;
-                PhysicsWorld.Instance.GetBodyPosition(rb.BodyId, out px, out py, out pz);
-                tr.X = px;
-                tr.Y = py;
-                tr.Z = pz;
+                PhysicsWorld.Instance.GetBodyPosition(rb._BodyId, out px, out py, out pz);
+                tr.Position.X = px;
+                tr.Position.Y = py;
+                tr.Position.Z = pz;
 
                 JPH_Quat rot;
-                PhysicsWorld.Instance.GetBodyRotation(rb.BodyId, out rot);
-                QuatToEulerDeg(rot, out tr.RotX, out tr.RotY, out tr.RotZ);
+                PhysicsWorld.Instance.GetBodyRotation(rb._BodyId, out rot);
+                QuatToEulerDeg(rot, out tr.Rotation.X, out tr.Rotation.Y, out tr.Rotation.Z);
             }
         }
 
         private static IntPtr CreateShape(Collider col)
         {
-            switch (col.ShapeType)
+            switch (col.Shape)
             {
-                case Collider.Box:
-                    var halfExt = new JPH_Vec3(col.BoxHalfX, col.BoxHalfY, col.BoxHalfZ);
+                case ShapeType.Box:
+                    var halfExt = new JPH_Vec3(col.BoxHalfExtents.X, col.BoxHalfExtents.Y, col.BoxHalfExtents.Z);
                     return PhysicsBridge.JPH_BoxShape_Create(ref halfExt, 0.05f);
-                case Collider.Sphere:
+                case ShapeType.Sphere:
                     return PhysicsBridge.JPH_SphereShape_Create(col.SphereRadius);
-                case Collider.Capsule:
+                case ShapeType.Capsule:
                     return PhysicsBridge.JPH_CapsuleShape_Create(col.CapsuleHalfHeight, col.CapsuleRadius);
-                case Collider.Cylinder:
+                case ShapeType.Cylinder:
                     return PhysicsBridge.JPH_CylinderShape_Create(col.CylinderHalfHeight, col.CylinderRadius);
-                case Collider.Plane:
-                    var normal = new JPH_Vec3(col.PlaneNormalX, col.PlaneNormalY, col.PlaneNormalZ);
+                case ShapeType.Plane:
+                    var normal = new JPH_Vec3(col.PlaneNormal.X, col.PlaneNormal.Y, col.PlaneNormal.Z);
                     var plane = new JPH_Plane(normal, col.PlaneDistance);
                     return PhysicsBridge.JPH_PlaneShape_Create(ref plane, IntPtr.Zero, col.PlaneHalfExtent);
                 default:
@@ -530,7 +530,7 @@ namespace ECS
                 var tr = world.GetComponent<Transform>(e);
 
                 // Skip planes (too large to render meaningfully)
-                if (col.ShapeType == Collider.Plane) continue;
+                if (col.Shape == ShapeType.Plane) continue;
 
                 // Create debug entity if not tracked
                 if (!debugColliderEntities_.ContainsKey(e))
@@ -553,20 +553,20 @@ namespace ECS
 
         private static int CreateColliderMesh(Collider col, Color c)
         {
-            switch (col.ShapeType)
+            switch (col.Shape)
             {
-                case Collider.Box:
+                case ShapeType.Box:
                     return NativeBridge.CreateBoxMesh(
-                        col.BoxHalfX * 2f, col.BoxHalfY * 2f, col.BoxHalfZ * 2f,
+                        col.BoxHalfExtents.X * 2f, col.BoxHalfExtents.Y * 2f, col.BoxHalfExtents.Z * 2f,
                         c.R, c.G, c.B);
-                case Collider.Sphere:
+                case ShapeType.Sphere:
                     return NativeBridge.CreateSphereMesh(
                         col.SphereRadius, 16, 8, c.R, c.G, c.B);
-                case Collider.Capsule:
+                case ShapeType.Capsule:
                     return NativeBridge.CreateCapsuleMesh(
                         col.CapsuleRadius, col.CapsuleHalfHeight * 2f, 16, 8,
                         c.R, c.G, c.B);
-                case Collider.Cylinder:
+                case ShapeType.Cylinder:
                     return NativeBridge.CreateCylinderMesh(
                         col.CylinderRadius, col.CylinderHalfHeight * 2f, 16,
                         c.R, c.G, c.B);
@@ -583,11 +583,11 @@ namespace ECS
                 var tr = world.GetComponent<Transform>(e);
                 var mc = world.GetComponent<MeshComponent>(e);
 
-                if (mc.RendererEntityId >= 0)
+                if (mc._RendererEntityId >= 0)
                 {
                     var wt = world.GetComponent<WorldTransform>(e);
                     float[] matrix = (wt != null) ? wt.Matrix : tr.ToMatrix();
-                    NativeBridge.SetEntityTransform(mc.RendererEntityId, matrix);
+                    NativeBridge.SetEntityTransform(mc._RendererEntityId, matrix);
                 }
             }
         }

@@ -23,6 +23,11 @@
   "project-structure",
   {
     "type": "dir",
+    "name": "technical-docs",
+    "label": "Technical Docs"
+  },
+  {
+    "type": "dir",
     "name": "roadmap",
     "label": "Roadmap"
   }

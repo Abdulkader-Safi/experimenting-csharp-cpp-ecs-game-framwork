@@ -8,7 +8,7 @@ Attach a `Camera` component to any entity with a `Transform`:
 
 ```csharp
 world.AddComponent(player, new Camera {
-    OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f,
+    Offset = new Vec3(0f, 0f, 3f),
     Yaw = 0f, Pitch = 0f,
     Fov = 45f,
     LookSpeed = 90f,
@@ -20,11 +20,11 @@ The `CameraFollowSystem` handles all camera logic automatically.
 
 ## Camera Modes
 
-### Third-Person (Mode 0, default)
+### Third-Person (CameraMode.ThirdPerson, default)
 
 The camera orbits around the entity at a configurable distance. Scroll wheel zooms in and out, clamped between `MinDistance` and `MaxDistance`.
 
-### First-Person (Mode 1)
+### First-Person (CameraMode.FirstPerson)
 
 The camera is placed at the entity's position plus `EyeHeight` on the Y axis. It looks in the direction defined by `Yaw` and `Pitch`. Scroll wheel zoom is not used in this mode.
 
@@ -45,7 +45,7 @@ Press **TAB** to toggle between modes. The toggle is edge-detected (fires once p
 
 ## How It Works
 
-1. **Orbit distance** is calculated from the length of the offset vector (`OffsetX/Y/Z`)
+1. **Orbit distance** is calculated from the length of the `Offset` vector
 2. **Yaw and Pitch** define the spherical coordinates around the entity
 3. In third-person mode, the camera position is computed as: entity position + spherical offset
 4. In first-person mode, the camera is at entity position + `EyeHeight`, looking along the yaw/pitch direction
@@ -116,27 +116,26 @@ FOV is set in `FreeCameraState.Fov` (default `45`).
 
 Free camera state is stored in `FreeCameraState` (static class, not an ECS component):
 
-| Field      | Type    | Default   | Description                                      |
-| ---------- | ------- | --------- | ------------------------------------------------ |
-| `IsActive` | `bool`  | `false`   | Whether the free camera is currently active      |
-| `X/Y/Z`    | `float` | `0, 2, 5` | World-space position                             |
-| `Yaw`      | `float` | `0`       | Horizontal look angle (degrees); 0 = facing -Z   |
-| `Pitch`    | `float` | `0`       | Vertical look angle (degrees), clamped [-89, 89] |
-| `Fov`      | `float` | `45`      | Vertical field of view (degrees)                 |
+| Field      | Type    | Default     | Description                                      |
+| ---------- | ------- | ----------- | ------------------------------------------------ |
+| `IsActive` | `bool`  | `false`     | Whether the free camera is currently active      |
+| `Position` | `Vec3`  | `(0, 2, 5)` | World-space position                             |
+| `Yaw`      | `float` | `0`         | Horizontal look angle (degrees); 0 = facing -Z   |
+| `Pitch`    | `float` | `0`         | Vertical look angle (degrees), clamped [-89, 89] |
+| `Fov`      | `float` | `45`        | Vertical field of view (degrees)                 |
 
 ## Camera Properties
 
-| Field                  | Type    | Default   | Description                                       |
-| ---------------------- | ------- | --------- | ------------------------------------------------- |
-| `OffsetX/Y/Z`          | `float` | `0, 0, 3` | Offset vector; length = orbit distance            |
-| `Yaw`                  | `float` | `0`       | Horizontal orbit angle (degrees)                  |
-| `Pitch`                | `float` | `0`       | Vertical orbit angle (degrees), clamped [-89, 89] |
-| `Fov`                  | `float` | `45`      | Vertical field of view (degrees)                  |
-| `LookSpeed`            | `float` | `90`      | Degrees/second for keyboard orbit                 |
-| `MouseSensitivity`     | `float` | `0.15`    | Degrees/pixel for mouse look                      |
-| `Mode`                 | `int`   | `0`       | `0` = third-person orbit, `1` = first-person      |
-| `EyeHeight`            | `float` | `0.8`     | Eye height offset for first-person mode           |
-| `WasModeTogglePressed` | `bool`  | `false`   | Internal state for edge-detecting TAB             |
-| `MinDistance`          | `float` | `1`       | Minimum zoom distance (third-person)              |
-| `MaxDistance`          | `float` | `20`      | Maximum zoom distance (third-person)              |
-| `ZoomSpeed`            | `float` | `2`       | Scroll wheel zoom sensitivity                     |
+| Field              | Type         | Default       | Description                                       |
+| ------------------ | ------------ | ------------- | ------------------------------------------------- |
+| `Offset`           | `Vec3`       | `(0, 0, 3)`   | Offset vector; length = orbit distance            |
+| `Yaw`              | `float`      | `0`           | Horizontal orbit angle (degrees)                  |
+| `Pitch`            | `float`      | `0`           | Vertical orbit angle (degrees), clamped [-89, 89] |
+| `Fov`              | `float`      | `45`          | Vertical field of view (degrees)                  |
+| `LookSpeed`        | `float`      | `90`          | Degrees/second for keyboard orbit                 |
+| `MouseSensitivity` | `float`      | `0.15`        | Degrees/pixel for mouse look                      |
+| `Mode`             | `CameraMode` | `ThirdPerson` | `ThirdPerson` (orbit) or `FirstPerson`            |
+| `EyeHeight`        | `float`      | `0.8`         | Eye height offset for first-person mode           |
+| `MinDistance`      | `float`      | `1`           | Minimum zoom distance (third-person)              |
+| `MaxDistance`      | `float`      | `20`          | Maximum zoom distance (third-person)              |
+| `ZoomSpeed`        | `float`      | `2`           | Scroll wheel zoom sensitivity                     |

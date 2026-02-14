@@ -27,7 +27,7 @@ Queries: `Rigidbody` + `Collider` + `Transform`
 
 Three-phase system that integrates Jolt Physics:
 
-1. **Create bodies** — For entities with `Rigidbody` + `Collider` + `Transform` where `BodyCreated` is `false`, creates the Jolt shape and body.
+1. **Create bodies** — For entities with `Rigidbody` + `Collider` + `Transform` where `_BodyCreated` is `false`, creates the Jolt shape and body.
 2. **Step physics** — Advances the Jolt simulation via `PhysicsWorld.Instance.Step()` using a fixed 1/60s timestep accumulator.
 3. **Sync transforms** — Reads position and rotation back from Jolt for dynamic bodies and writes them to the ECS `Transform` component (quaternion converted to Euler degrees).
 
@@ -56,8 +56,8 @@ Queries: `Camera` + `Transform`
 
 Handles both camera modes:
 
-- **Third-person** (Mode 0): Orbits the camera around the entity. Scroll wheel zooms in/out, clamped between `MinDistance` and `MaxDistance`.
-- **First-person** (Mode 1): Places the camera at entity position + `EyeHeight`, looking along yaw/pitch direction.
+- **Third-person** (`CameraMode.ThirdPerson`): Orbits the camera around the entity. Scroll wheel zooms in/out, clamped between `MinDistance` and `MaxDistance`.
+- **First-person** (`CameraMode.FirstPerson`): Places the camera at entity position + `EyeHeight`, looking along yaw/pitch direction.
 
 Controls:
 
@@ -138,10 +138,10 @@ public static void GravitySystem(World world)
         var vel = world.GetComponent<Velocity>(e);
         var tr = world.GetComponent<Transform>(e);
 
-        vel.VY -= 9.8f * world.DeltaTime;
-        tr.X += vel.VX * world.DeltaTime;
-        tr.Y += vel.VY * world.DeltaTime;
-        tr.Z += vel.VZ * world.DeltaTime;
+        vel.Value.Y -= 9.8f * world.DeltaTime;
+        tr.Position.X += vel.Value.X * world.DeltaTime;
+        tr.Position.Y += vel.Value.Y * world.DeltaTime;
+        tr.Position.Z += vel.Value.Z * world.DeltaTime;
     }
 }
 

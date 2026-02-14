@@ -9,72 +9,72 @@ The engine can generate procedural meshes for common 3D shapes without requiring
 A six-faced cuboid with per-face normals.
 
 ```csharp
-int meshId = NativeBridge.CreateBoxMesh(2f, 1f, 3f, 0.8f, 0.2f, 0.2f);
+int meshId = NativeBridge.CreateBoxMesh(2f, 1f, 3f, new Color(0.8f, 0.2f, 0.2f));
 ```
 
-| Parameter | Description |
-|---|---|
+| Parameter | Description                       |
+| --------- | --------------------------------- |
 | `w, h, l` | Width (X), height (Y), length (Z) |
-| `r, g, b` | Vertex color (0-1) |
+| `Color c` | Vertex color                      |
 
 ### Sphere
 
 A UV sphere with outward-pointing normals.
 
 ```csharp
-int meshId = NativeBridge.CreateSphereMesh(0.5f, 32, 16, 0.2f, 0.8f, 0.2f);
+int meshId = NativeBridge.CreateSphereMesh(0.5f, 32, 16, new Color(0.2f, 0.8f, 0.2f));
 ```
 
-| Parameter | Description |
-|---|---|
-| `radius` | Sphere radius |
+| Parameter  | Description                         |
+| ---------- | ----------------------------------- |
+| `radius`   | Sphere radius                       |
 | `segments` | Horizontal subdivisions (longitude) |
-| `rings` | Vertical subdivisions (latitude) |
-| `r, g, b` | Vertex color |
+| `rings`    | Vertical subdivisions (latitude)    |
+| `Color c`  | Vertex color                        |
 
 ### Plane
 
 A flat quad on the XZ plane at Y=0, with normal pointing up.
 
 ```csharp
-int meshId = NativeBridge.CreatePlaneMesh(10f, 10f, 0.3f, 0.8f, 0.3f);
+int meshId = NativeBridge.CreatePlaneMesh(10f, 10f, new Color(0.3f, 0.8f, 0.3f));
 ```
 
-| Parameter | Description |
-|---|---|
-| `w, h` | Width (X) and depth (Z) |
-| `r, g, b` | Vertex color |
+| Parameter | Description             |
+| --------- | ----------------------- |
+| `w, h`    | Width (X) and depth (Z) |
+| `Color c` | Vertex color            |
 
 ### Cylinder
 
 A capped cylinder aligned along the Y axis.
 
 ```csharp
-int meshId = NativeBridge.CreateCylinderMesh(0.4f, 1f, 32, 0.2f, 0.2f, 0.8f);
+int meshId = NativeBridge.CreateCylinderMesh(0.4f, 1f, 32, new Color(0.2f, 0.2f, 0.8f));
 ```
 
-| Parameter | Description |
-|---|---|
-| `radius` | Cylinder radius |
-| `height` | Total height |
+| Parameter  | Description     |
+| ---------- | --------------- |
+| `radius`   | Cylinder radius |
+| `height`   | Total height    |
 | `segments` | Number of sides |
-| `r, g, b` | Vertex color |
+| `Color c`  | Vertex color    |
 
 ### Capsule
 
 A cylinder with hemisphere caps. Total height = `height + 2 * radius`.
 
 ```csharp
-int meshId = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f, 32, 16, 0.9f, 0.8f, 0.2f);
+int meshId = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f, 32, 16, new Color(0.9f, 0.8f, 0.2f));
 ```
 
-| Parameter | Description |
-|---|---|
-| `radius` | Radius of caps and cylinder |
-| `height` | Length of the cylinder portion |
-| `segments` | Horizontal subdivisions |
-| `rings` | Vertical subdivisions per hemisphere |
-| `r, g, b` | Vertex color |
+| Parameter  | Description                          |
+| ---------- | ------------------------------------ |
+| `radius`   | Radius of caps and cylinder          |
+| `height`   | Length of the cylinder portion       |
+| `segments` | Horizontal subdivisions              |
+| `rings`    | Vertical subdivisions per hemisphere |
+| `Color c`  | Vertex color                         |
 
 ## Convenience Overloads
 
@@ -93,14 +93,11 @@ int cap    = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f);
 Primitive meshes work exactly like glTF meshes. The returned mesh ID can be shared across multiple entities:
 
 ```csharp
-int boxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, 0.8f, 0.2f, 0.2f);
+int boxMesh = NativeBridge.CreateBoxMesh(1f, 1f, 1f, new Color(0.8f, 0.2f, 0.2f));
 
 // Spawn an entity with the box
-int box = world.Spawn();
-world.AddComponent(box, new Transform { X = 0f, Y = 0.5f });
-world.AddComponent(box, new MeshComponent {
-    MeshId = boxMesh,
-    RendererEntityId = NativeBridge.CreateEntity(boxMesh)
+int box = world.SpawnMeshEntity(boxMesh, new Transform {
+    Position = new Vec3(0f, 0.5f, 0f)
 });
 ```
 

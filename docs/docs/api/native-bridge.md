@@ -37,21 +37,25 @@ NativeBridge.RemoveEntity(entityId);
 
 Generate meshes for common 3D shapes without external model files. Each method returns a mesh ID usable with `CreateEntity()`.
 
+### With Color
+
 ```csharp
-int box  = NativeBridge.CreateBoxMesh(2f, 1f, 3f, 0.8f, 0.2f, 0.2f);
-int sph  = NativeBridge.CreateSphereMesh(0.5f, 32, 16, 0.2f, 0.8f, 0.2f);
-int pln  = NativeBridge.CreatePlaneMesh(10f, 10f, 0.3f, 0.8f, 0.3f);
-int cyl  = NativeBridge.CreateCylinderMesh(0.4f, 1f, 32, 0.2f, 0.2f, 0.8f);
-int cap  = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f, 32, 16, 0.9f, 0.8f, 0.2f);
+int box  = NativeBridge.CreateBoxMesh(2f, 1f, 3f, new Color(0.8f, 0.2f, 0.2f));
+int sph  = NativeBridge.CreateSphereMesh(0.5f, 32, 16, new Color(0.2f, 0.8f, 0.2f));
+int pln  = NativeBridge.CreatePlaneMesh(10f, 10f, new Color(0.3f, 0.8f, 0.3f));
+int cyl  = NativeBridge.CreateCylinderMesh(0.4f, 1f, 32, new Color(0.2f, 0.2f, 0.8f));
+int cap  = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f, 32, 16, new Color(0.9f, 0.8f, 0.2f));
 ```
 
-| Method               | Parameters                                 | Description                              |
-| -------------------- | ------------------------------------------ | ---------------------------------------- |
-| `CreateBoxMesh`      | `w, h, l, r, g, b`                         | Axis-aligned box (width, height, length) |
-| `CreateSphereMesh`   | `radius, segments, rings, r, g, b`         | UV sphere                                |
-| `CreatePlaneMesh`    | `w, h, r, g, b`                            | Flat quad on XZ plane                    |
-| `CreateCylinderMesh` | `radius, height, segments, r, g, b`        | Capped cylinder along Y                  |
-| `CreateCapsuleMesh`  | `radius, height, segments, rings, r, g, b` | Cylinder with hemisphere caps            |
+| Method               | Parameters                               | Description                              |
+| -------------------- | ---------------------------------------- | ---------------------------------------- |
+| `CreateBoxMesh`      | `w, h, l, Color`                         | Axis-aligned box (width, height, length) |
+| `CreateSphereMesh`   | `radius, segments, rings, Color`         | UV sphere                                |
+| `CreatePlaneMesh`    | `w, h, Color`                            | Flat quad on XZ plane                    |
+| `CreateCylinderMesh` | `radius, height, segments, Color`        | Capped cylinder along Y                  |
+| `CreateCapsuleMesh`  | `radius, height, segments, rings, Color` | Cylinder with hemisphere caps            |
+
+### Convenience (default grey)
 
 All shapes have convenience overloads that use default grey color (`0.7`) and default tessellation (32 segments, 16 rings):
 
@@ -61,6 +65,14 @@ int sph = NativeBridge.CreateSphereMesh(0.5f);
 int pln = NativeBridge.CreatePlaneMesh(10f, 10f);
 int cyl = NativeBridge.CreateCylinderMesh(0.4f, 1f);
 int cap = NativeBridge.CreateCapsuleMesh(0.3f, 0.6f);
+```
+
+### Raw float overloads
+
+The original `float r, float g, float b` signatures are still available for direct use:
+
+```csharp
+int box = NativeBridge.CreateBoxMesh(2f, 1f, 3f, 0.8f, 0.2f, 0.2f);
 ```
 
 See [Primitive Shapes](../features/primitive-shapes.md) for full parameter tables and ECS usage examples.

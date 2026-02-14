@@ -30,9 +30,9 @@ Wireframes follow the entity's transform, so they move and rotate with dynamic p
 
 ```csharp
 // Custom wireframe color per collider
-new Collider { ShapeType = Collider.Box, DebugColor = Color.Red }
-new Collider { ShapeType = Collider.Sphere, DebugColor = new Color("#ff6600") }
-new Collider { ShapeType = Collider.Capsule, DebugColor = new Color(0.5f, 0f, 1f) }
+new Collider { Shape = ShapeType.Box, DebugColor = Color.Red }
+new Collider { Shape = ShapeType.Sphere, DebugColor = new Color("#ff6600") }
+new Collider { Shape = ShapeType.Capsule, DebugColor = new Color(0.5f, 0f, 1f) }
 ```
 
 ## Toggle

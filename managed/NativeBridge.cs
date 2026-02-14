@@ -191,6 +191,32 @@ namespace ECS
             return renderer_create_capsule_mesh(radius, height, segments, rings, r, g, b);
         }
 
+        // Procedural Primitives — Color overloads
+        public static int CreateBoxMesh(float w, float h, float l, Color c)
+        {
+            return renderer_create_box_mesh(w, h, l, c.R, c.G, c.B);
+        }
+
+        public static int CreateSphereMesh(float radius, int segments, int rings, Color c)
+        {
+            return renderer_create_sphere_mesh(radius, segments, rings, c.R, c.G, c.B);
+        }
+
+        public static int CreatePlaneMesh(float w, float h, Color c)
+        {
+            return renderer_create_plane_mesh(w, h, c.R, c.G, c.B);
+        }
+
+        public static int CreateCylinderMesh(float radius, float height, int segments, Color c)
+        {
+            return renderer_create_cylinder_mesh(radius, height, segments, c.R, c.G, c.B);
+        }
+
+        public static int CreateCapsuleMesh(float radius, float height, int segments, int rings, Color c)
+        {
+            return renderer_create_capsule_mesh(radius, height, segments, rings, c.R, c.G, c.B);
+        }
+
         // Procedural Primitives — convenience overloads (default color=grey 0.7, segments=32, rings=16)
         public static int CreateBoxMesh(float w, float h, float l)
         {

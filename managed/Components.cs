@@ -27,24 +27,35 @@ namespace ECS
         public static Color White { get { return new Color(1f, 1f, 1f); } }
     }
 
+    public class Vec3
+    {
+        public float X, Y, Z;
+        public Vec3() { X = 0; Y = 0; Z = 0; }
+        public Vec3(float x, float y, float z) { X = x; Y = y; Z = z; }
+    }
+
+    public enum LightType { Directional = 0, Point = 1, Spot = 2 }
+    public enum ShapeType { Box = 0, Sphere = 1, Capsule = 2, Cylinder = 3, Plane = 4 }
+    public enum CameraMode { ThirdPerson = 0, FirstPerson = 1 }
+
     public class Transform
     {
         public const double DegToRad = Math.PI / 180.0;
 
-        public float X = 0f, Y = 0f, Z = 0f;
-        public float RotX = 0f, RotY = 0f, RotZ = 0f;
-        public float ScaleX = 1f, ScaleY = 1f, ScaleZ = 1f;
+        public Vec3 Position = new Vec3();
+        public Vec3 Rotation = new Vec3();
+        public Vec3 Scale = new Vec3(1f, 1f, 1f);
 
         // Returns a column-major 4x4 matrix (matching GLM layout)
         // Order: Scale -> RotX -> RotY -> RotZ -> Translate
         public float[] ToMatrix()
         {
-            float cx = (float)Math.Cos(RotX * DegToRad);
-            float sx = (float)Math.Sin(RotX * DegToRad);
-            float cy = (float)Math.Cos(RotY * DegToRad);
-            float sy = (float)Math.Sin(RotY * DegToRad);
-            float cz = (float)Math.Cos(RotZ * DegToRad);
-            float sz = (float)Math.Sin(RotZ * DegToRad);
+            float cx = (float)Math.Cos(Rotation.X * DegToRad);
+            float sx = (float)Math.Sin(Rotation.X * DegToRad);
+            float cy = (float)Math.Cos(Rotation.Y * DegToRad);
+            float sy = (float)Math.Sin(Rotation.Y * DegToRad);
+            float cz = (float)Math.Cos(Rotation.Z * DegToRad);
+            float sz = (float)Math.Sin(Rotation.Z * DegToRad);
 
             // Combined rotation: Rz * Ry * Rx (same order as glm::rotate chain)
             float r00 = cy * cz;
@@ -61,10 +72,10 @@ namespace ECS
 
             // Column-major: mat[col*4 + row]
             return new float[] {
-                r00 * ScaleX, r10 * ScaleX, r20 * ScaleX, 0f,  // column 0
-                r01 * ScaleY, r11 * ScaleY, r21 * ScaleY, 0f,  // column 1
-                r02 * ScaleZ, r12 * ScaleZ, r22 * ScaleZ, 0f,  // column 2
-                X,            Y,            Z,            1f   // column 3
+                r00 * Scale.X, r10 * Scale.X, r20 * Scale.X, 0f,  // column 0
+                r01 * Scale.Y, r11 * Scale.Y, r21 * Scale.Y, 0f,  // column 1
+                r02 * Scale.Z, r12 * Scale.Z, r22 * Scale.Z, 0f,  // column 2
+                Position.X,    Position.Y,    Position.Z,    1f   // column 3
             };
         }
 
@@ -106,8 +117,8 @@ namespace ECS
 
     public class MeshComponent
     {
-        public int MeshId = -1;
-        public int RendererEntityId = -1;
+        public int _MeshId = -1;
+        public int _RendererEntityId = -1;
     }
 
     public class Movable
@@ -117,14 +128,13 @@ namespace ECS
 
     public class Light
     {
-        public const int Directional = 0, Point = 1, Spot = 2;
-        public int Type = Directional;
-        public float ColorR = 1f, ColorG = 1f, ColorB = 1f;
+        public LightType Type = LightType.Directional;
+        public Color LightColor = Color.White;
         public float Intensity = 1f;
-        public float DirX = 0f, DirY = -1f, DirZ = 0f;
+        public Vec3 Direction = new Vec3(0f, -1f, 0f);
         public float Radius = 10f;
         public float InnerConeDeg = 12.5f, OuterConeDeg = 17.5f;
-        public int LightIndex = -1;
+        public int _LightIndex = -1;
     }
 
     public class Timer
@@ -138,8 +148,8 @@ namespace ECS
 
     public class Rigidbody
     {
-        public uint BodyId = 0;
-        public bool BodyCreated = false;
+        public uint _BodyId = 0;
+        public bool _BodyCreated = false;
         public JPH_MotionType MotionType = JPH_MotionType.Dynamic;
         public float Friction = 0.5f;
         public float Restitution = 0.3f;
@@ -150,11 +160,10 @@ namespace ECS
 
     public class Collider
     {
-        public const int Box = 0, Sphere = 1, Capsule = 2, Cylinder = 3, Plane = 4;
-        public int ShapeType = Box;
+        public ShapeType Shape = ShapeType.Box;
 
         // Box
-        public float BoxHalfX = 0.5f, BoxHalfY = 0.5f, BoxHalfZ = 0.5f;
+        public Vec3 BoxHalfExtents = new Vec3(0.5f, 0.5f, 0.5f);
         // Sphere
         public float SphereRadius = 0.5f;
         // Capsule
@@ -162,7 +171,7 @@ namespace ECS
         // Cylinder
         public float CylinderHalfHeight = 0.5f, CylinderRadius = 0.5f;
         // Plane
-        public float PlaneNormalX = 0f, PlaneNormalY = 1f, PlaneNormalZ = 0f;
+        public Vec3 PlaneNormal = new Vec3(0f, 1f, 0f);
         public float PlaneDistance = 0f;
         public float PlaneHalfExtent = 100f;
 
@@ -172,20 +181,19 @@ namespace ECS
 
     public class Camera
     {
-        public float OffsetX = 0f, OffsetY = 0f, OffsetZ = 3f;
+        public Vec3 Offset = new Vec3(0f, 0f, 3f);
         public float Yaw = 0f;
         public float Pitch = 0f;
         public float Fov = 45f;
         public float LookSpeed = 90f;
         public float MouseSensitivity = 0.15f;
-        public double LastMouseX = 0.0, LastMouseY = 0.0;
-        public bool MouseInitialized = false;
-        public bool WasEscPressed = false;
+        public double _LastMouseX = 0.0, _LastMouseY = 0.0;
+        public bool _MouseInitialized = false;
+        public bool _WasEscPressed = false;
 
-        // Camera mode: 0 = third-person orbit, 1 = first-person
-        public int Mode = 0;
+        public CameraMode Mode = CameraMode.ThirdPerson;
         public float EyeHeight = 0.8f;
-        public bool WasModeTogglePressed = false;
+        public bool _WasModeTogglePressed = false;
         public float MinDistance = 1f;
         public float MaxDistance = 20f;
         public float ZoomSpeed = 2f;

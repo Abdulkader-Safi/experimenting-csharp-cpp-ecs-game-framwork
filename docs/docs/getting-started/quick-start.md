@@ -25,19 +25,15 @@ public static class Game
 
 ## 2. Load a Mesh and Spawn an Entity
 
-Load a glTF model, create an entity, and give it a transform, mesh, and movement controls:
+Load a glTF model, create an entity with a transform and mesh, and give it movement controls:
 
 ```csharp
         int meshId = NativeBridge.LoadMesh("models/Box.glb");
-
-        int player = world.Spawn();
-        world.AddComponent(player, new Transform());
-        world.AddComponent(player, new MeshComponent {
-            MeshId = meshId,
-            RendererEntityId = NativeBridge.CreateEntity(meshId)
-        });
+        int player = world.SpawnMeshEntity(meshId, new Transform());
         world.AddComponent(player, new Movable());
 ```
+
+`SpawnMeshEntity` creates the entity with a `Transform` and `MeshComponent` in one call.
 
 ## 3. Add a Camera
 
@@ -45,7 +41,7 @@ Attach a `Camera` component to follow the player. The orbit camera lets you rota
 
 ```csharp
         world.AddComponent(player, new Camera {
-            OffsetZ = 3f,   // orbit distance
+            Offset = new Vec3(0f, 0f, 3f),
             Fov = 45f
         });
 ```
@@ -55,13 +51,14 @@ Attach a `Camera` component to follow the player. The orbit camera lets you rota
 Create a directional light so the scene isn't dark:
 
 ```csharp
-        int sun = world.Spawn();
-        world.AddComponent(sun, new Transform { Y = 5f });
-        world.AddComponent(sun, new Light {
-            Type = Light.Directional,
-            DirX = 0.2f, DirY = -1f, DirZ = 0.3f,
-            Intensity = 1.0f
-        });
+        int sun = world.Spawn(
+            new Transform { Position = new Vec3(0f, 5f, 0f) },
+            new Light {
+                Type = LightType.Directional,
+                Direction = new Vec3(0.2f, -1f, 0.3f),
+                Intensity = 1.0f
+            }
+        );
 ```
 
 ## 5. Register Systems
@@ -97,23 +94,22 @@ public static class Game
     {
         // Load mesh and create player
         int meshId = NativeBridge.LoadMesh("models/Box.glb");
-        int player = world.Spawn();
-        world.AddComponent(player, new Transform());
-        world.AddComponent(player, new MeshComponent {
-            MeshId = meshId,
-            RendererEntityId = NativeBridge.CreateEntity(meshId)
-        });
+        int player = world.SpawnMeshEntity(meshId, new Transform());
         world.AddComponent(player, new Movable());
-        world.AddComponent(player, new Camera { OffsetZ = 3f, Fov = 45f });
+        world.AddComponent(player, new Camera {
+            Offset = new Vec3(0f, 0f, 3f),
+            Fov = 45f
+        });
 
         // Add a directional light
-        int sun = world.Spawn();
-        world.AddComponent(sun, new Transform { Y = 5f });
-        world.AddComponent(sun, new Light {
-            Type = Light.Directional,
-            DirX = 0.2f, DirY = -1f, DirZ = 0.3f,
-            Intensity = 1.0f
-        });
+        int sun = world.Spawn(
+            new Transform { Position = new Vec3(0f, 5f, 0f) },
+            new Light {
+                Type = LightType.Directional,
+                Direction = new Vec3(0.2f, -1f, 0.3f),
+                Intensity = 1.0f
+            }
+        );
 
         // Register systems (order matters!)
         world.AddSystem(Systems.InputMovementSystem);

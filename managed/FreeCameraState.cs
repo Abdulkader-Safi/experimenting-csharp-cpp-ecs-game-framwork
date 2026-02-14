@@ -5,7 +5,7 @@ namespace ECS
         public static bool IsActive = false;
 
         // Position
-        public static float X = 0f, Y = 2f, Z = 5f;
+        public static Vec3 Position = new Vec3(0f, 2f, 5f);
 
         // Orientation (degrees)
         public static float Yaw = 0f, Pitch = 0f;
